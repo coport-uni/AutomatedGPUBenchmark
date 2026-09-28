@@ -37,7 +37,8 @@ at commit `ca42b88`.
 - [x] Register MCP servers serena, context7, fetch (`claude mcp add`)
 - [x] `LearnedPatterns.md` initial entries (DevSpec 4.6.1 prototype
       notes, WSL2 findings)
-- [ ] Section 0.3 verification, output attached to PR `## Testing`
+- [x] Section 0.3 verification, output attached to PR `## Testing`
+      (submodule pinned to 4390147, CommonClaude#32)
 - [ ] Commit, push, PR, merge, delete branch
 
 ### Milestone verification plan
