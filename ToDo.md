@@ -149,3 +149,51 @@ E3 (NVML fields on this host).
       image with `--gpus all`; CI green; push, PR
 - [ ] `LearnedPatterns.md` additions, issue update, merge, branch
       cleanup
+
+---
+
+## 4. M2: detect, sysinfo, telemetry
+
+### Background
+User request (2026-09-29): continue with steps 1 and 2 (CommonClaude
+hook fix PR, submodule pin, merges) and use the GPU. The CommonClaude
+PR (coport-uni/CommonClaude#32) is open; merging it was refused by the
+auto-mode classifier and is left to the operator. Item 4 of DevSpec
+0.3 now passes with a real `Write` against the fixed hooks.
+M2 is DevSpec section 6 row M2, verified per ToDo section 1 row M2.
+Reference: DevSpec 4.1 (preflight, idle), 4.2, 4.3, 4.8.
+Relevant patterns: LP E3 (null for unsupported NVML fields), E5
+(`MSYS_NO_PATHCONV` for docker from Git Bash), W2 (no backslashes in
+Bash commands).
+
+### Decisions (2026-09-29)
+- "Use the GPU" is read as the M2 hardware run: preflight and idle
+  only, no load. Burn and VRAM runs (M3) still need an explicit
+  operator confirmation in the session.
+- NVML brand to class: GeForce, GeForce RTX, Titan, Titan RTX are
+  consumer; Quadro RTX, NVIDIA RTX, and plain Quadro are workstation;
+  everything else (Tesla, NVIDIA, GRID, ...) is datacenter. Titan and
+  plain Quadro go beyond the M0 decision and are flagged to the user.
+- Mixed GPU classes on one host require `--gpu-class`.
+- `gpubench run` executes preflight and idle, then exits 3
+  (INCOMPLETE) until the burn phases arrive in M3.
+- Memory module layout needs dmidecode and root; the unprivileged
+  container records `configuration: null`.
+
+### Tasks
+- [x] Issue for M2 (#6)
+- [x] Branch `feat/m2-telemetry` from `feat/m1-container`
+- [x] `detect.py`: brand to class table, class override, per-GPU
+      probe of supported telemetry fields
+- [x] `collectors/sysinfo.py`: `/proc/cpuinfo`, `/proc/meminfo`,
+      `/etc/os-release`, `uname`, NVML GPU and driver details
+- [x] `collectors/telemetry.py`: NVML sample in loader field order,
+      `null` for unsupported fields, drift-free 1 s scheduler
+- [x] `orchestrator.py` and `cli.py run`: result folder, preflight
+      (leftover `gpu_burn` check, baseline sample), idle sampling
+- [x] Fixture tests: brand table, proc parsers, fake NVML with
+      unsupported fields, scheduler cadence, orchestrator dry run
+- [x] Hardware run in the container: `gpubench run --profile quick`,
+      check 1 s cadence, one line per GPU, `null` fields, compare
+      `sysinfo.json` with `nvidia-smi -q`
+- [ ] Commit, push, PR, issue update

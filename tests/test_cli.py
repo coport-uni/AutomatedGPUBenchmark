@@ -2,12 +2,10 @@
 
 import pytest
 
-from gpubench import __version__, cli
+from gpubench import __version__, cli, orchestrator
 from gpubench.runtime.exit_codes import ExitCode
 
 stub_invocations = [
-    ["run", "--profile", "quick"],
-    ["run", "--gpu-class", "workstation", "--output", "json"],
     ["status"],
     ["attach"],
     ["stop"],
@@ -41,3 +39,27 @@ def test_invalid_gpu_class_is_a_usage_error():
 def test_stub_subcommands_report_not_implemented(argv, capsys):
     assert cli.main(argv) == ExitCode.ERROR
     assert "not implemented" in capsys.readouterr().err
+
+
+def test_run_passes_options_to_orchestrator(monkeypatch, tmp_path):
+    received = []
+
+    def fake_run(options):
+        received.append(options)
+        return ExitCode.INCOMPLETE
+
+    monkeypatch.setattr(orchestrator, "run", fake_run)
+    argv = [
+        "run",
+        "--profile",
+        "quick",
+        "--gpu-class",
+        "workstation",
+        "--results-root",
+        str(tmp_path),
+    ]
+    assert cli.main(argv) == ExitCode.INCOMPLETE
+    (options,) = received
+    assert options.profile == "quick"
+    assert options.gpu_class == "workstation"
+    assert options.results_root == tmp_path
