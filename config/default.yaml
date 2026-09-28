@@ -1,0 +1,33 @@
+# Default configuration. A profile under profiles/ overrides only the
+# keys it lists; nested mappings merge key by key.
+# Durations follow DevSpec section 4.1.
+
+sampling_interval_s: 1
+results_root: /results
+
+phases:
+  preflight_s: 30
+  idle_s: 60
+  burn_warmup_s: 300
+  burn_steady_s: 600
+  cooldown_s: 120
+  vram_s: 600
+  optional_s: 300
+
+gpu_burn:
+  # gpu_burn -m N%; 90 % is the tool default.
+  memory_percent: 90
+  use_doubles: false
+  use_tensor_cores: false
+
+cuda_memtest:
+  # --stress equals --disable_all --enable_test 10 --exit_on_error.
+  stress: true
+
+# auto picks memtest_vulkan for consumer and dcgm_diag for datacenter;
+# workstation has no optional runner. none disables the phase.
+optional_runner: auto
+
+evaluation:
+  # gpu-fryer default tolerance is 10 % below the fastest GPU.
+  gpu_ratio_min: 0.90

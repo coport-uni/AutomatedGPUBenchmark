@@ -1,0 +1,5 @@
+# GeForce GPUs. ECC is usually off, so the ECC rules evaluate to N/A.
+# memtest_vulkan needs an NVIDIA Vulkan ICD in the container
+# (NVIDIA_DRIVER_CAPABILITIES=graphics on a native Linux host).
+
+optional_runner: memtest_vulkan

@@ -1,0 +1,50 @@
+{
+  "hostname": "synthetic-datacenter",
+  "captured_at": "2026-09-28T00:00:00Z",
+  "synthetic": true,
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-00000000-0000-4000-8000-00000000d000",
+      "name": "NVIDIA H100 80GB HBM3",
+      "brand": "NVIDIA",
+      "gpu_class": "datacenter",
+      "vbios": "96.00.74.00.01",
+      "memory_total_mib": 81559,
+      "ecc_mode": "enabled",
+      "temp_slowdown_c": 85,
+      "temp_shutdown_c": 90,
+      "pcie_gen_max": 5,
+      "pcie_width_max": 16
+    },
+    {
+      "index": 1,
+      "uuid": "GPU-00000000-0000-4000-8000-00000000d001",
+      "name": "NVIDIA H100 80GB HBM3",
+      "brand": "NVIDIA",
+      "gpu_class": "datacenter",
+      "vbios": "96.00.74.00.01",
+      "memory_total_mib": 81559,
+      "ecc_mode": "enabled",
+      "temp_slowdown_c": 85,
+      "temp_shutdown_c": 90,
+      "pcie_gen_max": 5,
+      "pcie_width_max": 16
+    }
+  ],
+  "driver_version": "580.00",
+  "cuda_version": "13.0",
+  "cpu": {
+    "model": "Synthetic CPU",
+    "cores": 16,
+    "threads": 32
+  },
+  "memory": {
+    "total_mib": 131072,
+    "configuration": "4 x 32 GiB DDR5"
+  },
+  "os": {
+    "name": "Ubuntu 24.04.3 LTS",
+    "kernel": "6.8.0-synthetic"
+  }
+}

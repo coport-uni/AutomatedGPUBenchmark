@@ -1,0 +1,36 @@
+{
+  "hostname": "synthetic-consumer",
+  "captured_at": "2026-09-28T00:00:00Z",
+  "synthetic": true,
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-00000000-0000-4000-8000-00000000c001",
+      "name": "NVIDIA GeForce RTX 4090",
+      "brand": "GeForce",
+      "gpu_class": "consumer",
+      "vbios": "95.02.3C.40.7F",
+      "memory_total_mib": 24564,
+      "ecc_mode": "disabled",
+      "temp_slowdown_c": 88,
+      "temp_shutdown_c": 93,
+      "pcie_gen_max": 4,
+      "pcie_width_max": 16
+    }
+  ],
+  "driver_version": "580.00",
+  "cuda_version": "13.0",
+  "cpu": {
+    "model": "Synthetic CPU",
+    "cores": 16,
+    "threads": 32
+  },
+  "memory": {
+    "total_mib": 131072,
+    "configuration": "4 x 32 GiB DDR5"
+  },
+  "os": {
+    "name": "Ubuntu 24.04.3 LTS",
+    "kernel": "6.8.0-synthetic"
+  }
+}
