@@ -5,7 +5,7 @@
 > completes (see CommonClaude CLAUDE.md section 9).
 >
 > Last updated: 2026-09-28
-> Total patterns: 15
+> Total patterns: 17
 >
 > Provenance format: `(from ToDo#N)` where N is the top-level `##`
 > section number in `ToDo.md`, or `(from DevSpec 4.6.1)` for entries
@@ -66,6 +66,20 @@
 - **Cause**: The default python-docx template omits `w:percent` on `w:zoom`.
 - **Fix**: Set `w:percent="100"` on `w:zoom` before saving.
 - **Rule**: Always patch `w:zoom` with `w:percent="100"` before validating a python-docx document. (from DevSpec 4.6.1)
+
+### L5. gpu_burn always sleeps `-stts` seconds before its verdict
+
+- **Problem**: The first quick run lost the gpu_burn verdict: the orchestrator stopped the tool after its 30 s grace and the log had no `Tested N GPUs` lines; a 10 s burn took 46 s to exit.
+- **Cause**: After the run gpu_burn sends SIGTERM to its workers and then sleeps the full `-stts` threshold (default 30 s) unconditionally before printing the verdict (gpu_burn-drv.cpp, `sleep_for(sigterm_timeout_threshold_secs)`).
+- **Fix**: Pass `-stts 5` from `config/default.yaml` and give the tool `stop_grace_s + sigterm_timeout_s` to exit.
+- **Rule**: Always read a tool's shutdown path before choosing a stop timeout; never set the grace period equal to a timeout the tool itself sleeps through. (from ToDo#5)
+
+### L6. cuda_memtest: one default pass is longer than any phase
+
+- **Problem**: One default pass (tests 0 to 8 and 10) on a 24 GiB Quadro RTX 6000 did not finish within 300 s; Test0 alone took 40 s.
+- **Cause**: The default test list scales with memory size; Test10 (`--stress`) with its default iterations takes 1 to 16 s per round.
+- **Fix**: The VRAM phase runs `--stress` with an unbounded pass count per GPU and stops the tool at the phase deadline; finished Test10 rounds are counted.
+- **Rule**: Always make long tools time-bounded by the orchestrator, not by pass counts guessed per GPU size. (from ToDo#5)
 
 ---
 

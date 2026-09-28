@@ -2,6 +2,7 @@
 
 import datetime as dt
 import io
+import json
 from pathlib import Path
 
 import pynvml
@@ -82,7 +83,71 @@ def test_mixed_classes_abort(tmp_path, fake_system):
     assert "--gpu-class" in out.getvalue()
 
 
-def test_quick_run_writes_preflight_and_idle(
+class FakeProcess:
+    """Stands in for ToolProcess: copies a captured log and exits 0."""
+
+    def __init__(self, argv, log_path, source):
+        self.argv = list(argv)
+        self.log_path = log_path
+        self.stopped = False
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_bytes(source.read_bytes())
+
+    def poll(self):
+        return 0
+
+    def wait(self, timeout_s=None):
+        return 0
+
+    def stop(self, grace_s=None):
+        return 0
+
+    def finish(self):
+        return 0
+
+    def read_log(self):
+        return self.log_path.read_text(encoding="utf-8")
+
+
+def fake_launcher(launched):
+    def launch(argv, log_path):
+        name = Path(argv[0]).name
+        source = logs_dir / launched_logs[name]
+        process = FakeProcess(argv, log_path, source)
+        launched.append(process)
+        return process
+
+    return launch
+
+
+logs_dir = Path(__file__).parent / "fixtures" / "logs"
+launched_logs = {
+    "gpu_burn": "gpu_burn_quadro_rtx6000_x2_ok.log",
+    "cuda_memtest": "cuda_memtest_quadro_rtx6000_dev0_ok.log",
+}
+expected_phases = [
+    "preflight",
+    "idle",
+    "burn_warmup",
+    "burn_steady",
+    "cooldown",
+    "vram",
+]
+
+
+def test_phase_at_follows_the_schedule():
+    schedule = [("a", 2.0), ("b", 3.0)]
+    assert [orchestrator.phase_at(schedule, t) for t in range(6)] == [
+        "a",
+        "a",
+        "b",
+        "b",
+        "b",
+        "b",
+    ]
+
+
+def test_quick_run_goes_through_every_phase(
     tmp_path, fake_system, instant_sampler
 ):
     nvml = FakeNvml(
@@ -94,17 +159,39 @@ def test_quick_run_writes_preflight_and_idle(
     )
     options = orchestrator.RunOptions("quick", None, tmp_path / "results")
     out = io.StringIO()
+    launched = []
     code = orchestrator.run(
-        options, nvml, out, proc_root=tmp_path, host_root=host_dir
+        options,
+        nvml,
+        out,
+        proc_root=tmp_path,
+        host_root=host_dir,
+        launch=fake_launcher(launched),
     )
     assert code == ExitCode.INCOMPLETE
     (result_dir,) = (tmp_path / "results").iterdir()
     run = load_result_dir(result_dir)
-    assert run.phases == ["preflight", "idle"]
+    assert run.phases == expected_phases
     expected_run = {"profile": "quick", "gpu_class": "workstation"}
     assert run.sysinfo["run"] == expected_run
+    profile = config.load_profile("quick")
     idle = [s for s in run.samples if s["phase"] == "idle"]
-    per_gpu = len(idle) // len(run.gpu_indices)
-    assert per_gpu == config.load_profile("quick")["phases"]["idle_s"]
+    assert len(idle) // len(run.gpu_indices) == profile["phases"]["idle_s"]
     assert all(s["ecc_corr"] is None for s in run.samples)
+    assert [Path(p.argv[0]).name for p in launched] == [
+        "gpu_burn",
+        "cuda_memtest",
+        "cuda_memtest",
+    ]
+    burn_seconds = profile["phases"]["burn_warmup_s"]
+    burn_seconds += profile["phases"]["burn_steady_s"]
+    assert launched[0].argv[-1] == str(burn_seconds)
+    summary = json.loads((result_dir / "summary.json").read_text())
+    assert summary["status"] == "INCOMPLETE"
+    burn = summary["runners"]["gpu_burn"]
+    assert burn["complete"]
+    assert [g["verdict"] for g in burn["gpus"]] == ["OK", "OK"]
+    assert [m["index"] for m in summary["runners"]["cuda_memtest"]] == [0, 1]
+    assert (result_dir / "logs" / "gpu_burn.log").is_file()
+    assert "Gflop/s" not in out.getvalue().replace("Gflop/s max", "")
     assert not nvml.initialised

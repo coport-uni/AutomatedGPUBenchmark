@@ -1,0 +1,13 @@
+SYNTHETIC: hand-written from the FPRINTF formats in tests.cpp (e94e1ee), not a measurement.
+[09/28/2026 16:52:12][c54431c531ea][0]:Running cuda memtest, version 1.2.3
+[09/28/2026 16:52:12][c54431c531ea][0]:num_gpus=1
+[09/28/2026 16:52:12][c54431c531ea][0]:Attached to device 0 successfully.
+[09/28/2026 16:52:12][c54431c531ea][0]:Allocated 23323 MB
+[09/28/2026 16:52:12][c54431c531ea][0]:Test10 [Memory stress test]
+[09/28/2026 16:52:12][c54431c531ea][0]:Test10 with pattern=0x128eff3f33421bf1
+[09/28/2026 16:52:13][c54431c531ea][0]:Test10 finished in 0.9 seconds
+[09/28/2026 16:52:13][c54431c531ea][0]:Test10 [Memory stress test]
+[09/28/2026 16:52:14][c54431c531ea][0]:ERROR: The unit serial number is 1561020000081
+[09/28/2026 16:52:14][c54431c531ea][0]:ERROR: (test10[Memory stress test]) 4 errors found in block 17
+[09/28/2026 16:52:14][c54431c531ea][0]:ERROR: the last 4 error addresses are:	0x7f0010000000	0x7f0010000008	0x7f0010000010	0x7f0010000018
+[09/28/2026 16:52:14][c54431c531ea][0]:ERROR: (test10[Memory stress test]) 2 errors found in block 18
