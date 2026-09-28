@@ -5,7 +5,7 @@
 > completes (see CommonClaude CLAUDE.md section 9).
 >
 > Last updated: 2026-09-28
-> Total patterns: 14
+> Total patterns: 15
 >
 > Provenance format: `(from ToDo#N)` where N is the top-level `##`
 > section number in `ToDo.md`, or `(from DevSpec 4.6.1)` for entries
@@ -91,6 +91,13 @@
 - **Cause**: The Bash tool tracks the working directory itself and applies a leading `cd` to later calls (visible as the "Primary working directory" toggling), not to the rest of the same command.
 - **Fix**: Addressed the submodule with `git -C external/CommonClaude ...` and absolute file paths.
 - **Rule**: Always use `git -C <path>` and absolute paths for the submodule; never rely on `cd` inside a compound command. (from ToDo#2)
+
+### W4. A CLI test ran the real `gpubench run` against the host GPUs
+
+- **Problem**: Once `run` was implemented, the parametrised stub test called it for real: NVML on the Windows host answered, the test sampled the GPUs for 60 s and wrote result folders to `C:\results`.
+- **Cause**: The test list still treated `run` as a stub, and `/results` resolves to the drive root on Windows.
+- **Fix**: Removed `run` from the stub list and added a test that replaces `orchestrator.run` with a recorder; deleted the stray folders.
+- **Rule**: Always patch the orchestrator in CLI tests; never let a unit test reach NVML or the default results root. (from ToDo#4)
 
 ---
 

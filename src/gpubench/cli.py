@@ -1,9 +1,10 @@
 """Command-line entry point for gpubench.
 
 The subcommands follow DevSpec section 3: ``run``, ``status``,
-``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. In the M1
-skeleton every subcommand parses its arguments and then reports that
-the implementation is missing, exiting with ``ExitCode.ERROR``.
+``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. ``run`` is
+implemented up to the idle phase; the other subcommands parse their
+arguments and report that the implementation is missing, exiting with
+``ExitCode.ERROR``.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from gpubench import __version__
 from gpubench.runtime.exit_codes import ExitCode
@@ -110,6 +112,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.command == "run":
+        # Imported here so that commands which never touch the GPU do
+        # not pay for loading NVML bindings.
+        from gpubench import orchestrator
+
+        options = orchestrator.RunOptions(
+            profile=args.profile,
+            gpu_class=args.gpu_class,
+            results_root=Path(args.results_root),
+        )
+        return int(orchestrator.run(options))
     print(
         f"gpubench {args.command}: not implemented yet (M1 skeleton)",
         file=sys.stderr,
