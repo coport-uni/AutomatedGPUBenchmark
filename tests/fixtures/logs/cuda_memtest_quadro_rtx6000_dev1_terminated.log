@@ -1,0 +1,19 @@
+[09/28/2026 16:52:32][f24f1900504c][0]:Running cuda memtest, version 1.2.3
+[09/28/2026 16:52:32][f24f1900504c][0]:Warning: Opening /proc/driver/nvidia/version failed
+[09/28/2026 16:52:32][f24f1900504c][0]:num_gpus=1
+[09/28/2026 16:52:32][f24f1900504c][1]:Device name=Quadro RTX 6000, global memory size=25769476096, serial=1560720000224
+[09/28/2026 16:52:33][f24f1900504c][1]:Attached to device 1 successfully.
+[09/28/2026 16:52:33][f24f1900504c][1]:Allocated 23323 MB
+[09/28/2026 16:52:33][f24f1900504c][1]:Test0 [Walking 1 bit]
+[09/28/2026 16:53:13][f24f1900504c][1]:Test0 finished in 40.2 seconds
+[09/28/2026 16:53:13][f24f1900504c][1]:Test1 [Own address test]
+[09/28/2026 16:53:15][f24f1900504c][1]:Test1 finished in 2.2 seconds
+[09/28/2026 16:53:15][f24f1900504c][1]:Test2 [Moving inversions, ones&zeros]
+[09/28/2026 16:53:26][f24f1900504c][1]:Test2 finished in 10.6 seconds
+[09/28/2026 16:53:26][f24f1900504c][1]:Test3 [Moving inversions, 8 bit pat]
+[09/28/2026 16:53:36][f24f1900504c][1]:Test3 finished in 10.7 seconds
+[09/28/2026 16:53:36][f24f1900504c][1]:Test4 [Moving inversions, random pattern]
+[09/28/2026 16:53:42][f24f1900504c][1]:Test4 finished in 5.3 seconds
+[09/28/2026 16:53:42][f24f1900504c][1]:Test5 [Block move, 64 moves]
+[09/28/2026 16:53:45][f24f1900504c][1]:Test5 finished in 2.7 seconds
+[09/28/2026 16:53:45][f24f1900504c][1]:Test6 [Moving inversions, 32 bit pat]

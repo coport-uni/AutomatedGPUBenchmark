@@ -4,6 +4,9 @@
 
 sampling_interval_s: 1
 results_root: /results
+# Time a tool gets to exit by itself after its phase before the
+# process group is stopped; 30 s is the gpu_burn -stts default.
+stop_grace_s: 30
 
 phases:
   preflight_s: 30
@@ -19,6 +22,11 @@ gpu_burn:
   memory_percent: 90
   use_doubles: false
   use_tensor_cores: false
+  # gpu_burn -stts: after the run it sends SIGTERM to its workers and
+  # then sleeps this long unconditionally before printing the verdict.
+  # The tool default of 30 s adds 30 s to every run and collided with
+  # stop_grace_s, so the verdict was lost (LearnedPatterns L5).
+  sigterm_timeout_s: 5
 
 cuda_memtest:
   # --stress equals --disable_all --enable_test 10 --exit_on_error.

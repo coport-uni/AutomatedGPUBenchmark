@@ -197,3 +197,47 @@ Bash commands).
       check 1 s cadence, one line per GPU, `null` fields, compare
       `sysinfo.json` with `nvidia-smi -q`
 - [ ] Commit, push, PR, issue update
+
+---
+
+## 5. M3: gpu-burn and cuda_memtest runners
+
+### Background
+User request (2026-09-29): "continue with the phases that heat the
+GPU as well". This is the operator confirmation required by CLAUDE.md
+for burn and VRAM runs in this session. Runs use the `quick` profile
+only; the 900 s profiles wait for release verification (M9).
+Reference: DevSpec 4.1, 4.4 (gpu-burn OK, VRAM pattern errors), 4.8
+(raw output only in `logs/`, process groups, leftover check).
+Relevant patterns: LP E4 (driver stubs), E5 (`MSYS_NO_PATHCONV`), W4
+(never reach NVML from unit tests).
+
+### Decisions (2026-09-29)
+- Parsers are built on raw logs captured from this host in a short
+  heating run, plus synthetic failure logs marked as such.
+- gpu_burn runs once for warm-up plus steady (`TIME` = sum); the
+  orchestrator labels telemetry by elapsed time, so the tool is not
+  restarted between the two phases.
+- cuda_memtest runs one process per GPU (`--device N`) so a failing
+  GPU is attributed without parsing interleaved output; each process
+  runs `--stress` in a loop until the VRAM phase time is spent.
+- Child processes start in their own process group; on interrupt the
+  group gets SIGTERM, then SIGKILL after the gpu-burn default of 30 s.
+- Cooldown samples telemetry only.
+- M3 ends the run after VRAM with exit 3 (INCOMPLETE) because the
+  verdict arrives in M4.
+
+### Tasks
+- [x] Issue for M3 (#8), branch `feat/m3-runners` from `feat/m2-telemetry`
+- [x] Capture raw gpu_burn and cuda_memtest logs (short heating run)
+- [x] `runners/base.py`: process group launch, log file, stop
+- [x] `runners/gpu_burn.py`: command line, progress and result parser
+- [x] `runners/cuda_memtest.py`: command line, pass and error parser
+- [x] Orchestrator phases: burn_warmup, burn_steady, cooldown, vram
+- [x] Parser tests on real and synthetic logs
+- [x] Hardware run `gpubench run --profile quick` with GPU load;
+      Gflop/s per GPU, raw output only in `logs/`, leftover check
+- [ ] Commit, push, PR, issue update
+- [ ] Follow-up (M6): telemetry pauses while gpu_burn finishes after
+      the sampling window (about 8 s with `-stts 5`); sample during
+      that wait under a documented label

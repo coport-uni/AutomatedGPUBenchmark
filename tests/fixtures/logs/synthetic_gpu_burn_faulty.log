@@ -1,0 +1,16 @@
+SYNTHETIC: hand-written from the printf formats in gpu_burn-drv.cpp (3ead140), not a measurement.
+GPU 0: Quadro RTX 6000 (UUID: GPU-00000000-0000-4000-8000-000000000000)
+GPU 1: Quadro RTX 6000 (UUID: GPU-00000000-0000-4000-8000-000000000001)
+Using compare file: compare.fatbin
+Burning for 30 seconds.
+10.0%  proc'd: 79 (10741 Gflop/s) - 79 (10746 Gflop/s)   errors: 0 - 3  (WARNING!)   temps: 60 C - 61 C
+	Summary at:   Mon Sep 28 16:51:18 UTC 2026
+
+20.0%  proc'd: 158 (10702 Gflop/s) - 158 (10698 Gflop/s)   errors: 0 - 2  (WARNING!)   temps: 62 C - 63 C 30.0%  proc'd: 237 (10690 Gflop/s) - -1 (0 Gflop/s)   errors: 0 - 5  (DIED!)   temps: 63 C - --
+	Summary at:   Mon Sep 28 16:51:21 UTC 2026
+
+done
+
+Tested 2 GPUs:
+	GPU 0: OK
+	GPU 1: FAULTY
