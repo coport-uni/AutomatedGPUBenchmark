@@ -34,3 +34,32 @@ jobs:
       - name: Install package with dev dependencies
         run: python -m pip install --upgrade pip && pip install -e ".[dev]"
       - run: pytest -q
+
+  image:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space for the CUDA images
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: gpubench:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Tool binaries answer --help without a GPU
+        # The runner has no driver, so the CUDA stubs stand in for
+        # libcuda.so.1 and libnvidia-ml.so.1 (see Dockerfile).
+        # cuda_memtest exits 25 after printing its usage, so the check
+        # is on the output rather than on the exit status.
+        run: |
+          docker run --rm -e LD_LIBRARY_PATH=/opt/cuda-stubs gpubench:ci gpu_burn -h \
+            | grep 'Usage: gpu-burn'
+          docker run --rm -e LD_LIBRARY_PATH=/opt/cuda-stubs gpubench:ci cuda_memtest --help \
+            | grep 'Usage:cuda_memtest'
+          docker run --rm gpubench:ci gpubench --version

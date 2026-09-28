@@ -5,7 +5,7 @@
 > completes (see CommonClaude CLAUDE.md section 9).
 >
 > Last updated: 2026-09-28
-> Total patterns: 10
+> Total patterns: 14
 >
 > Provenance format: `(from ToDo#N)` where N is the top-level `##`
 > section number in `ToDo.md`, or `(from DevSpec 4.6.1)` for entries
@@ -78,6 +78,20 @@
 - **Fix**: Wrote each file with the dedicated Write tool instead.
 - **Rule**: Never batch more than one or two files into a single heredoc command; write files individually. (from ToDo#1)
 
+### W2. The Bash tool collapses doubled backslashes on this host
+
+- **Problem**: Text written through Bash heredocs or inline Python arrived with one backslash where two were typed; `\\t` became a tab in a Markdown file and a JSON payload became invalid.
+- **Cause**: The Claude Code Bash tool layer unescapes backslash pairs before Git Bash sees the command, so every quoting level below it is off by one.
+- **Fix**: Wrote backslash-bearing content with the Write tool, or built it in Python from `chr(92)` so the command string holds no backslashes at all.
+- **Rule**: Never put backslashes in a Bash command string on this host; use Write or `chr(92)`. (from ToDo#2)
+
+### W3. `cd` into the submodule inside a compound Bash command is not honoured
+
+- **Problem**: `cd external/CommonClaude && git add ...` staged and pushed against the superproject, and `cat ToDo.md` after such a `cd` printed the superproject file.
+- **Cause**: The Bash tool tracks the working directory itself and applies a leading `cd` to later calls (visible as the "Primary working directory" toggling), not to the rest of the same command.
+- **Fix**: Addressed the submodule with `git -C external/CommonClaude ...` and absolute file paths.
+- **Rule**: Always use `git -C <path>` and absolute paths for the submodule; never rely on `cd` inside a compound command. (from ToDo#2)
+
 ---
 
 ## §5. Environment Specifics
@@ -102,3 +116,17 @@
 - **Cause**: Measured with `nvidia-ml-py` in the container on Quadro RTX 6000, driver 596.72: temperature, slowdown and shutdown thresholds (91 and 94 C), fan speed, power, clocks, utilisation, memory, pstate, clocks event reasons, PCIe, VBIOS, retired pages all return values. `nvmlDeviceGetTotalEccErrors` and `nvmlDeviceGetRemappedRows` return `Not Supported` because ECC is disabled and Turing uses page retirement rather than row remapping.
 - **Fix**: Telemetry stores `null` for unsupported fields; ECC and remap rules evaluate to N/A on this host.
 - **Rule**: Always probe NVML field support per GPU at preflight and store `null` rather than failing; never assume ECC or remap counters exist. (from ToDo#1)
+
+### E4. Tool binaries need driver libraries even for `--help`
+
+- **Problem**: `gpu_burn -h` and `cuda_memtest --help` failed in the runtime image without `--gpus`: `error while loading shared libraries: libcuda.so.1` (and `libnvidia-ml.so.1`).
+- **Cause**: Both binaries link the driver libraries directly; the NVIDIA container toolkit mounts them only when a GPU is attached, so a CI runner has none.
+- **Fix**: Copied the CUDA toolkit stubs into `/opt/cuda-stubs` (outside the default search path) and run the smoke test with `LD_LIBRARY_PATH=/opt/cuda-stubs`. `cuda_memtest --help` prints usage and exits 25, so CI greps the output instead of trusting the status.
+- **Rule**: Never assume a CUDA tool runs without a GPU; use the stubs for `--help` checks and match on output, not exit code. (from ToDo#3)
+
+### E5. Git Bash rewrites container paths passed to docker
+
+- **Problem**: `docker run ... ls /opt/gpu-burn/` reported `C:/Program Files/Git/opt/gpu-burn/: No such file`.
+- **Cause**: MSYS path conversion turns leading-slash arguments into Windows paths before docker sees them.
+- **Fix**: `export MSYS_NO_PATHCONV=1` for docker commands, and pass volume sources as `$(cygpath -w "$PWD")`.
+- **Rule**: Always set `MSYS_NO_PATHCONV=1` when a docker command carries container-side paths from Git Bash. (from ToDo#3)

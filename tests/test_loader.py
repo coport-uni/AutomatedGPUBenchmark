@@ -8,7 +8,12 @@ from gpubench.analysis import loader
 
 fixtures_dir = Path(__file__).parent / "fixtures"
 synthetic_fixtures = ("consumer", "datacenter")
+measured_fixtures = ("workstation",)
+all_fixtures = synthetic_fixtures + measured_fixtures
 expected_phases = ["idle", "burn_warmup", "burn_steady"]
+# ECC is disabled on the Quadro RTX 6000 pair, so NVML reports these
+# fields as unsupported and the collector stores null (LP E3).
+unsupported_on_workstation = ("temp_mem", "ecc_corr", "ecc_uncorr")
 
 
 @pytest.mark.parametrize("name", synthetic_fixtures)
@@ -17,7 +22,21 @@ def test_fixture_is_marked_synthetic(name):
     assert run.sysinfo["synthetic"] is True
 
 
-@pytest.mark.parametrize("name", synthetic_fixtures)
+@pytest.mark.parametrize("name", measured_fixtures)
+def test_measured_fixture_is_idle_only_and_not_synthetic(name):
+    run = loader.load_result_dir(fixtures_dir / name)
+    assert run.sysinfo["synthetic"] is False
+    assert run.phases == ["idle"]
+
+
+def test_workstation_fixture_stores_null_for_unsupported_fields():
+    run = loader.load_result_dir(fixtures_dir / "workstation")
+    for sample in run.samples:
+        for field in unsupported_on_workstation:
+            assert sample[field] is None
+
+
+@pytest.mark.parametrize("name", all_fixtures)
 def test_every_listed_gpu_has_the_same_number_of_samples(name):
     run = loader.load_result_dir(fixtures_dir / name)
     listed = [gpu["index"] for gpu in run.sysinfo["gpus"]]
@@ -29,7 +48,7 @@ def test_every_listed_gpu_has_the_same_number_of_samples(name):
     assert len(set(counts.values())) == 1
 
 
-@pytest.mark.parametrize("name", synthetic_fixtures)
+@pytest.mark.parametrize("name", all_fixtures)
 def test_samples_carry_every_telemetry_field(name):
     run = loader.load_result_dir(fixtures_dir / name)
     for sample in run.samples:
