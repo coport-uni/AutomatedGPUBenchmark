@@ -36,3 +36,4 @@ Thumbs.db
 # ===== Project =====
 results/
 .claude/settings.local.json
+.serena/
