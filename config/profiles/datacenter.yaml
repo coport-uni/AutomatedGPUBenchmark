@@ -1,0 +1,8 @@
+# Datacenter GPUs (Tesla, A100, H100, and similar). ECC and row
+# remapping are checked; dcgmi diag -r 3 runs as the optional phase.
+
+optional_runner: dcgm_diag
+optional_s: 900
+
+dcgm_diag:
+  level: 3

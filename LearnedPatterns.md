@@ -5,7 +5,7 @@
 > completes (see CommonClaude CLAUDE.md section 9).
 >
 > Last updated: 2026-09-28
-> Total patterns: 9
+> Total patterns: 10
 >
 > Provenance format: `(from ToDo#N)` where N is the top-level `##`
 > section number in `ToDo.md`, or `(from DevSpec 4.6.1)` for entries
@@ -27,6 +27,13 @@
 - **Cause**: Git on Windows defaults to `core.autocrlf=true`, which rewrites text files on checkout.
 - **Fix**: Added `.gitattributes` forcing `eol=lf` for `.sh`, `.py`, `.yaml`, `.json`, `.md`, `.toml`, and `Dockerfile`.
 - **Rule**: Always commit `.gitattributes` with `eol=lf` rules before adding scripts that run in Linux containers. (from ToDo#1)
+
+### G2. CommonClaude hook path guards do not match Windows paths
+
+- **Problem**: A real `Write` of `tests/debug_x.py` from Claude Code on Windows was not blocked, although the same hook blocked a hand-written forward-slash payload.
+- **Cause**: Claude Code passes `C:\...\tests\debug_x.py`; `pre-write-guard` and `post-write-debug-remind` match `*/tests/*` and `*/claude_test/*` with forward-slash globs, so backslash paths never match.
+- **Fix**: Upstream fix in CommonClaude normalises `file_path` with `${file_path//\\//}` before the checks (CommonClaude issue #31, branch `fix/windows-hook-paths`); this repo bumps the submodule pin once it is merged.
+- **Rule**: Always verify hooks with the payload the real tool sends on the current host (use the tool itself, not only a simulated JSON payload). (from ToDo#2)
 
 ---
 

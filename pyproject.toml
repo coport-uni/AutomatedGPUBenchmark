@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpubench"
+dynamic = ["version"]
+description = "Automated NVIDIA GPU burn-in test with a one-page report"
+requires-python = ">=3.12"
+dependencies = [
+    "nvidia-ml-py>=12.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.15,<0.16",
+]
+
+[project.scripts]
+gpubench = "gpubench.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "gpubench.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 80
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["external"]
+
+[tool.ruff.lint]
+# E, W: pycodestyle; F: pyflakes; I: isort; UP: pyupgrade; B: bugbear;
+# D: pydocstyle for the docstring rule in CommonClaude CLAUDE.md
+# section 2.
+select = ["E", "W", "F", "I", "UP", "B", "D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests document themselves through their names.
+"tests/**" = ["D"]
+# claude_test/ is exempt from the column limit and docstrings
+# (CommonClaude CLAUDE.md section 8).
+"claude_test/**" = ["D", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

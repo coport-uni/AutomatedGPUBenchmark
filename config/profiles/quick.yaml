@@ -1,0 +1,12 @@
+# Development profile: exercises every phase in about two minutes.
+# Never use it for a release verdict.
+
+phases:
+  idle_s: 10
+  burn_warmup_s: 15
+  burn_steady_s: 30
+  cooldown_s: 10
+  vram_s: 30
+  optional_s: 0
+
+optional_runner: none

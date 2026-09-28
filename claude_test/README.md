@@ -8,4 +8,4 @@ the operator present (CommonClaude CLAUDE.md §5.1).
 
 | File | Purpose | What was learned |
 |---|---|---|
-| (none yet) | | |
+| `make_synthetic_fixtures.py` | Writes the synthetic `consumer` and `datacenter` fixtures under `tests/fixtures/` from fixed idle and load values (M1). | Fixtures must carry every field of `loader.telemetry_fields`; the script asserts the schema so drift shows up at generation time, not in a later test. |

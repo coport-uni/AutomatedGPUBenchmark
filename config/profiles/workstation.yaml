@@ -1,0 +1,5 @@
+# Quadro RTX and NVIDIA RTX GPUs. No optional runner: memtest_vulkan
+# targets consumer boards and DCGM diagnostics target datacenter boards.
+
+optional_runner: none
+optional_s: 0

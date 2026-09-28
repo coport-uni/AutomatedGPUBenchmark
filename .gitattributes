@@ -11,3 +11,4 @@
 Dockerfile text eol=lf
 .gitattributes text eol=lf
 .gitignore text eol=lf
+*.jsonl text eol=lf
