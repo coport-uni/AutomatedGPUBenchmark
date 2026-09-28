@@ -1,0 +1,48 @@
+{
+  "hostname": "DESKTOP-ENFP78E",
+  "captured_at": "2026-09-28T14:21:49Z",
+  "synthetic": false,
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-34a52002-1cb4-55c1-dbe6-1c5ec554e856",
+      "name": "Quadro RTX 6000",
+      "brand": "Quadro RTX",
+      "gpu_class": null,
+      "vbios": "90.02.56.00.01",
+      "memory_total_mib": 24576,
+      "ecc_mode": "disabled",
+      "temp_slowdown_c": 91,
+      "temp_shutdown_c": 94,
+      "pcie_gen_max": 3,
+      "pcie_width_max": 16
+    },
+    {
+      "index": 1,
+      "uuid": "GPU-45994475-78d8-499b-00a1-65696b061259",
+      "name": "Quadro RTX 6000",
+      "brand": "Quadro RTX",
+      "gpu_class": null,
+      "vbios": "90.02.56.00.01",
+      "memory_total_mib": 24576,
+      "ecc_mode": "disabled",
+      "temp_slowdown_c": 91,
+      "temp_shutdown_c": 94,
+      "pcie_gen_max": 3,
+      "pcie_width_max": 16
+    }
+  ],
+  "driver_version": "596.72",
+  "cuda_version": "13.2",
+  "cpu": {
+    "model": "AMD Ryzen 7 5800X 8-Core Processor",
+    "cores": 16
+  },
+  "memory": {
+    "total_mib": 15944
+  },
+  "os": {
+    "name": "Ubuntu 24.04.1 LTS",
+    "kernel": "6.6.87.2-microsoft-standard-WSL2"
+  }
+}

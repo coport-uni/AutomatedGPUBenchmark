@@ -135,14 +135,17 @@ E3 (NVML fields on this host).
       `claude_test/`
 - [x] `tests/test_loader.py`, `tests/test_config.py`, `tests/test_cli.py`
 - [x] `.github/workflows/ci.yml` lint and test jobs
-- [ ] M1a verification: `ruff check`, `ruff format --check`, `pytest`;
-      push, PR, CI green
-- [ ] Branch `feat/m1-container` for M1b: `Dockerfile`,
+- [x] M1a verification: `ruff check`, `ruff format --check`, `pytest`;
+      push, PR, CI green (PR #4, 31 tests, CI run 36434763671)
+- [x] Branch `feat/m1-container` for M1b: `Dockerfile`,
       `compose.yaml`, `docker/entrypoint.sh`, CI build job that runs
       `gpu_burn -h` and `cuda_memtest --help` without a GPU
-- [ ] Capture idle NVML samples from the real GPUs into
+      (driver stubs in `/opt/cuda-stubs`; cuda_memtest exits 25 after
+      printing usage, CI checks the output instead)
+- [x] Capture idle NVML samples from the real GPUs into
       `tests/fixtures/workstation/` (script in `claude_test/`)
-- [ ] M1b verification: local `docker build`; `nvidia-smi -L` in the
+      (2026-09-28 14:21 UTC, 10 s, 2 GPUs, no load)
+- [x] M1b verification: local `docker build`; `nvidia-smi -L` in the
       image with `--gpus all`; CI green; push, PR
 - [ ] `LearnedPatterns.md` additions, issue update, merge, branch
       cleanup

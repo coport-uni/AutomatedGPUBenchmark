@@ -1,0 +1,20 @@
+# Resident container for interactive and scripted runs (DevSpec 4.8).
+#   docker compose up -d --build
+#   docker compose exec -it gpubench gpubench run --profile quick
+# GPUs are fixed at container start; restart the service to change them.
+
+services:
+  gpubench:
+    build: .
+    image: gpubench:dev
+    init: true
+    command: ["sleep", "infinity"]
+    volumes:
+      - ./results:/results
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
