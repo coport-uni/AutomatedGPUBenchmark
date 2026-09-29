@@ -39,7 +39,7 @@ def draw_phase_bands(ax: Axes, ctx: ReportContext, label: bool) -> None:
         if colour is None:
             continue
         ax.axvspan(start, end, color=colour, zorder=0, linewidth=0)
-        if label:
+        if label and text.get(phase, phase):
             ax.text(
                 (start + end) / 2,
                 1.01,

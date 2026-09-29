@@ -141,3 +141,39 @@ def test_stop_terminates_the_whole_group(tmp_path):
     time.sleep(0.2)
     with pytest.raises(ProcessLookupError):
         os.kill(child_pid, 0)
+
+
+def is_running(pid):
+    """Return whether ``pid`` exists and is not a zombie (Linux)."""
+    try:
+        status = Path(f"/proc/{pid}/status").read_text()
+    except FileNotFoundError:
+        return False
+    state = next(line for line in status.splitlines() if line[:6] == "State:")
+    return "Z" not in state.split()[1]
+
+
+@pytest.mark.skipif(
+    not Path("/proc/self/status").exists(), reason="needs Linux /proc"
+)
+def test_stop_kills_a_worker_that_ignores_sigterm(tmp_path):
+    child_pid_file = tmp_path / "child.pid"
+    worker = (
+        "import signal, time; "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)"
+    )
+    script = (
+        "import subprocess, sys, time\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {worker!r}])\n"
+        f"open({str(child_pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(60)\n"
+    )
+    process = base.ToolProcess([sys.executable, "-c", script], tmp_path / "l")
+    deadline = time.monotonic() + 10
+    while not child_pid_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    time.sleep(0.5)
+    child_pid = int(child_pid_file.read_text())
+    process.stop(grace_s=5)
+    time.sleep(0.2)
+    assert not is_running(child_pid)

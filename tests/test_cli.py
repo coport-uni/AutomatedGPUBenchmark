@@ -6,9 +6,6 @@ from gpubench import __version__, cli, orchestrator
 from gpubench.runtime.exit_codes import ExitCode
 
 stub_invocations = [
-    ["status"],
-    ["attach"],
-    ["stop"],
     ["compare", "results/a", "results/b"],
 ]
 
@@ -71,3 +68,18 @@ def test_plot_rejects_a_missing_folder(tmp_path, capsys):
 def test_pdf_needs_a_report_docx(tmp_path, capsys):
     assert cli.main(["pdf", str(tmp_path)]) == ExitCode.ERROR
     assert "report.docx" in capsys.readouterr().err
+
+
+def test_unexpected_error_exits_with_error(monkeypatch, capsys):
+    def broken_run(options):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(orchestrator, "run", broken_run)
+    assert cli.main(["run", "--profile", "quick"]) == ExitCode.ERROR
+    assert "unexpected error" in capsys.readouterr().err
+
+
+def test_status_without_a_run_exits_zero(tmp_path, capsys):
+    code = cli.main(["status", "--results-root", str(tmp_path)])
+    assert code == ExitCode.PASS
+    assert "no run in progress" in capsys.readouterr().out

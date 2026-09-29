@@ -186,6 +186,7 @@ def run_sampler(
     interval_s: float,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
+    until: Callable[[], bool] | None = None,
 ) -> int:
     """Call ``tick`` once per interval for ``duration_s`` seconds.
 
@@ -199,6 +200,8 @@ def run_sampler(
         interval_s: Target spacing between ticks.
         clock: Monotonic time source, injectable for tests.
         sleep: Sleep function, injectable for tests.
+        until: Optional condition checked before each tick; sampling
+            ends early once it returns True.
 
     Returns:
         The number of ticks performed.
@@ -209,6 +212,8 @@ def run_sampler(
         delay = start + number * interval_s - clock()
         if delay > 0:
             sleep(delay)
+        if until is not None and until():
+            return number
         tick(number)
     return count
 

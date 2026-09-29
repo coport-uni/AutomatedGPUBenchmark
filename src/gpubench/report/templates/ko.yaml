@@ -80,6 +80,8 @@ phases:
   idle: Idle
   burn_warmup: Warm-up
   burn_steady: Steady
+  # A few seconds wide; left unlabelled so it does not crowd "Cool".
+  burn_finish: ""
   cooldown: Cool
   vram: VRAM
 

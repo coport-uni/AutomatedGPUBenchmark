@@ -81,6 +81,18 @@ def worst(grades: list[str]) -> str:
     return max(known, key=grade_rank.__getitem__).value
 
 
+def gpu_verdict(grades: dict[str, str], run_verdict: str | None) -> str:
+    """Return the verdict of one GPU.
+
+    In an INCOMPLETE run a GPU without WARN or FAIL is INCOMPLETE, not
+    PASS, because some of its tests did not finish.
+    """
+    verdict = worst(list(grades.values()))
+    if run_verdict == Grade.INCOMPLETE and verdict not in issue_grades:
+        return Grade.INCOMPLETE.value
+    return verdict
+
+
 def mean_of(values: list[Any]) -> float | None:
     """Return the mean of the non-missing values."""
     present = [v for v in values if v is not None]
@@ -126,6 +138,18 @@ def phase_seconds(ctx: ReportContext) -> dict[str, float]:
     return durations
 
 
+def throttle_seconds(
+    m: dict[str, Any], reasons: tuple[str, ...]
+) -> float | None:
+    """Return the summed throttle time of ``reasons``.
+
+    None means no graded sample exists, as after an early stop.
+    """
+    values = [m.get("throttle_s", {}).get(r) for r in reasons]
+    present = [v for v in values if v is not None]
+    return sum(present) if present else None
+
+
 def measured_text(key: str, grade: str, m: dict[str, Any], best: float | None):
     """Return the localized measured value of rule ``key`` for one GPU."""
     text = strings()["measured"]
@@ -150,7 +174,9 @@ def measured_text(key: str, grade: str, m: dict[str, Any], best: float | None):
         return text["count"].format(count=value)
     if key in ("hw_slowdown", "sw_thermal"):
         reasons = hw_reasons if key == "hw_slowdown" else ("sw_thermal",)
-        seconds = sum(m.get("throttle_s", {}).get(r, 0) for r in reasons)
+        seconds = throttle_seconds(m, reasons)
+        if seconds is None:
+            return text["unknown"]
         if not seconds:
             return text["none_seen"]
         return text["seconds"].format(seconds=seconds)
@@ -226,7 +252,14 @@ def build_summary(ctx: ReportContext) -> str:
                 gpus=gpu_list(vram_bad), count=count
             )
         )
-    if not compute_bad and not vram_bad and grades:
+    # "0 errors" is a claim only when both tests actually ran; after an
+    # early stop they are N/A and the sentence would be false.
+    both_passed = grades and all(
+        g.get("compute_errors") == Grade.PASS
+        and g.get("vram_errors") == Grade.PASS
+        for g in grades.values()
+    )
+    if both_passed:
         sentences.append(text["summary_clean"])
     for rule in evaluation.get("rules", []):
         if rule["key"] in ("compute_errors", "vram_errors"):
@@ -395,7 +428,6 @@ def build_gpu_rows(ctx: ReportContext) -> list[list[Cell]]:
     rows = []
     for index, m in sorted(ctx.metrics.items()):
         own = grades.get(index, {})
-        throttle = m.get("throttle_s", {})
         retention = m.get("clk_sm_retention")
         gflops = m.get("gflops_mean")
         values = {
@@ -415,8 +447,12 @@ def build_gpu_rows(ctx: ReportContext) -> list[list[Cell]]:
                 1,
                 unknown,
             ),
-            "sw_thermal": f"{throttle.get('sw_thermal', 0):.0f}",
-            "hw_slowdown": f"{sum(throttle.get(r, 0) for r in hw_reasons):.0f}",
+            "sw_thermal": fmt_number(
+                throttle_seconds(m, ("sw_thermal",)), 0, unknown
+            ),
+            "hw_slowdown": fmt_number(
+                throttle_seconds(m, hw_reasons), 0, unknown
+            ),
             "compute_errors": fmt_number(m.get("burn_errors"), 0, unknown),
             "vram_errors": fmt_number(m.get("vram_errors"), 0, unknown),
         }
@@ -428,7 +464,7 @@ def build_gpu_rows(ctx: ReportContext) -> list[list[Cell]]:
             )
             for column, text in values.items()
         ]
-        verdict = worst(list(own.values()))
+        verdict = gpu_verdict(own, ctx.evaluation.get("verdict"))
         row.append(Cell(strings()["grades"][verdict], grade=verdict))
         rows.append(row)
     return rows

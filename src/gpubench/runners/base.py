@@ -84,6 +84,10 @@ class ToolProcess:
             if self.wait(grace_s) is None:
                 self._signal_group(getattr(signal, "SIGKILL", signal.SIGTERM))
                 self.wait()
+            # A worker that ignored SIGTERM can outlive its leader; the
+            # group must be empty before the next phase starts.
+            if hasattr(os, "killpg"):
+                self._signal_group(signal.SIGKILL)
         return self.finish()
 
     def finish(self) -> int:
