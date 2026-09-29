@@ -177,6 +177,7 @@ def test_quick_run_goes_through_every_phase(
     assert run.sysinfo["run"]["gpu_class"] == "workstation"
     interval = profile["sampling_interval_s"]
     assert run.sysinfo["run"]["sampling_interval_s"] == interval
+    assert run.sysinfo["run"]["phases"] == profile["phases"]
     idle = [s for s in run.samples if s["phase"] == "idle"]
     assert len(idle) // len(run.gpu_indices) == profile["phases"]["idle_s"]
     assert all(s["ecc_corr"] is None for s in run.samples)
@@ -200,4 +201,8 @@ def test_quick_run_goes_through_every_phase(
     # console (DevSpec 4.8).
     assert "proc'd" not in out.getvalue()
     assert "Test10" not in out.getvalue()
+    # The reports follow the verdict (DevSpec 4.5).
+    for name in ("report.docx", "report.html", "report.md", "dashboard.html"):
+        assert (result_dir / name).is_file()
+    assert (result_dir / "charts" / "png" / "temperature.png").is_file()
     assert not nvml.initialised

@@ -15,7 +15,12 @@
 
 ## §1. Recurring Issues
 
-(none yet)
+### R1. Backslashes in Bash command text keep breaking edits
+
+- **Problem**: W2 recurred in M5: an inline Python edit of the Dockerfile searched for `\\` line continuations, which arrived as single backslashes that Python read as string line joins, so the match failed.
+- **Cause**: Same as W2; the Bash tool unescapes backslash pairs, and Dockerfiles and shell scripts are full of them.
+- **Fix**: Edited the Dockerfile with the Edit tool.
+- **Rule**: Never edit Dockerfiles, shell scripts, or regexes through Bash on this host; use Edit or Write. (from ToDo#8, see W2)
 
 ---
 
@@ -87,6 +92,27 @@
 - **Cause**: The default test list scales with memory size; Test10 (`--stress`) with its default iterations takes 1 to 16 s per round.
 - **Fix**: The VRAM phase runs `--stress` with an unbounded pass count per GPU and stops the tool at the phase deadline; finished Test10 rounds are counted.
 - **Rule**: Always make long tools time-bounded by the orchestrator, not by pass counts guessed per GPU size. (from ToDo#5)
+
+### L7. python-docx cannot add a run inside `w:fldSimple`
+
+- **Problem**: Building the footer page number raised `'lxml.etree._Element' object has no attribute 'add_r'`.
+- **Cause**: `OxmlElement("w:fldSimple")` is a plain lxml element, so wrapping it in `Paragraph` gives no `add_run` support.
+- **Fix**: Add the run to the paragraph as usual, then insert the `w:fldSimple` before it and move the run into the field.
+- **Rule**: Always create runs through python-docx on a real `w:p` and move them into field elements afterwards. (from ToDo#8)
+
+### L8. matplotlib `loc="best"` ignores text, so legends cover limit labels
+
+- **Problem**: In the power chart the legend was drawn over the "Power limit 260 W" label; with `lower right` it covered the cooldown dip instead.
+- **Cause**: The `best` placement only avoids lines and patches, not text artists; any fixed in-axes corner collides with some data.
+- **Fix**: Draw the legend with `fig.legend(loc="outside lower right")` so constrained layout reserves space below the axes, and give limit lines 20 % headroom so their label stays inside the axes below the phase names.
+- **Rule**: Always place chart legends outside the axes when the data shape varies from run to run. (from ToDo#8)
+
+### L9. Plotly's embedded bundle contains `cdn.plot.ly`
+
+- **Problem**: A test asserting that `dashboard.html` contains no `cdn.plot.ly` failed although the library was embedded.
+- **Cause**: The inlined plotly.js source itself contains the CDN URL as a configuration default.
+- **Fix**: Assert that no `<script src="http` tag exists instead of searching for the host name.
+- **Rule**: Always test for an external script tag, not for a URL string, when checking that a page is self-contained. (from ToDo#8)
 
 ---
 
