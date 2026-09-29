@@ -13,6 +13,8 @@ phase_colours = {
     "idle": "#eeeeee",
     "burn_warmup": "#fdf0dc",
     "burn_steady": "#fbe3d3",
+    # gpu_burn finishing after its window: load ends inside this band.
+    "burn_finish": "#f5ece6",
     "cooldown": "#e3eefa",
     "vram": "#e6f3e6",
 }

@@ -47,6 +47,27 @@
 - **Fix**: Moved the keys under `phases` and added a test that every profile key exists in `default.yaml`.
 - **Rule**: Always test that overrides only use keys the defaults define; never rely on a merge to reject typos. (from ToDo#6)
 
+### G4. The report crashed on the data of a stopped run
+
+- **Problem**: The first SIGINT test failed in `report/content.py` with `unsupported format string passed to NoneType.__format__`; the stopped run had no report.
+- **Cause**: A run stopped during burn has no graded samples, so the throttle seconds are `None`, and the GPU table formatted them as numbers.
+- **Fix**: `throttle_seconds` returns `None` for missing data and the table shows "확인 불가"; `finish_interrupted` also catches any report error so the verdict and exit 3 survive.
+- **Rule**: Always test report generation on a partial run, not only on complete fixtures. (from ToDo#9)
+
+### G5. An INCOMPLETE report claimed "0 errors" for tests that never ran
+
+- **Problem**: The report of a run stopped during burn said compute and VRAM errors were 0 on all GPUs, and each GPU row showed PASS.
+- **Cause**: The summary only checked for FAIL grades, and the per-GPU verdict ignored N/A, so "not run" read as "passed".
+- **Fix**: The clean sentence requires PASS on both rules for every GPU; in an INCOMPLETE run a GPU without WARN or FAIL is INCOMPLETE.
+- **Rule**: Never let an absent result count as a pass in text meant for people. (from ToDo#9)
+
+### G6. An uncaught exception exits with status 1, which means WARN
+
+- **Problem**: Any Python traceback would end `gpubench` with status 1, which a script reads as the WARN verdict.
+- **Cause**: The exit code table (DevSpec 4.8) reuses 1 for WARN; Python uses 1 for uncaught exceptions.
+- **Fix**: `cli.main` catches unexpected exceptions, prints the traceback, and returns 4.
+- **Rule**: Always map unexpected errors to the tool's own error status when exit codes carry meaning. (from ToDo#9)
+
 ---
 
 ## §3. Library Quirks
@@ -114,6 +135,13 @@
 - **Fix**: Assert that no `<script src="http` tag exists instead of searching for the host name.
 - **Rule**: Always test for an external script tag, not for a URL string, when checking that a page is self-contained. (from ToDo#8)
 
+### L10. gpu_burn loads the GPU for about 10 s after its window
+
+- **Problem**: The new `burn_finish` samples showed 248 to 258 W on both Quadro RTX 6000 for all ten seconds after the 45 s burn window, not an idle tail.
+- **Cause**: gpu_burn starts loading about 4 s after launch (initialisation), and its workers ignore the soft SIGTERM, so they keep burning until the SIGKILL after `-stts` (5 s).
+- **Fix**: The tail is sampled as `burn_finish` and not graded; the graded `burn_steady` window stays fully under load.
+- **Rule**: Always check the telemetry of a tool's start and end before assuming its load matches the requested duration. (from ToDo#9)
+
 ---
 
 ## §4. Workflow Lessons
@@ -145,6 +173,13 @@
 - **Cause**: The test list still treated `run` as a stub, and `/results` resolves to the drive root on Windows.
 - **Fix**: Removed `run` from the stub list and added a test that replaces `orchestrator.run` with a recorder; deleted the stray folders.
 - **Rule**: Always patch the orchestrator in CLI tests; never let a unit test reach NVML or the default results root. (from ToDo#4)
+
+### W5. Verifying TTY behaviour without a terminal
+
+- **Problem**: `docker exec -it` needs a terminal on the client, which the Claude Code Bash tool does not have, so live mode and Ctrl+C could not be run directly.
+- **Cause**: The tool runs commands without a pseudo-terminal.
+- **Fix**: Ran the command under `script -qec "gpubench run ..." /dev/null` inside the container, which provides a pty; sent SIGINT with `kill -INT <pid from .state.json>`; detached `attach` with `timeout -s INT 20` (its exit 124 comes from `timeout`).
+- **Rule**: Always exercise TTY paths through a real pty such as `script`, and say in the PR that the operator did not press Ctrl+C by hand. (from ToDo#9)
 
 ---
 

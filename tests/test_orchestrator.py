@@ -3,6 +3,7 @@
 import datetime as dt
 import io
 import json
+import signal
 from pathlib import Path
 
 import pynvml
@@ -12,6 +13,8 @@ from conftest import FakeNvml, make_device
 from gpubench import config, orchestrator
 from gpubench.analysis.loader import load_result_dir
 from gpubench.collectors import telemetry
+from gpubench.runtime import lock, signals
+from gpubench.runtime import state as run_state
 from gpubench.runtime.exit_codes import ExitCode
 
 host_dir = Path(__file__).parent / "fixtures" / "host_wsl2"
@@ -28,9 +31,14 @@ def instant_sampler(monkeypatch):
     def no_sleep(seconds):
         return None
 
-    def fast(tick, duration_s, interval_s):
+    def fast(tick, duration_s, interval_s, until=None):
         return original(
-            tick, duration_s, interval_s, clock=frozen_clock, sleep=no_sleep
+            tick,
+            duration_s,
+            interval_s,
+            clock=frozen_clock,
+            sleep=no_sleep,
+            until=until,
         )
 
     monkeypatch.setattr(telemetry, "run_sampler", fast)
@@ -65,7 +73,8 @@ def test_leftover_process_aborts_before_touching_nvml(tmp_path):
     assert code == ExitCode.ERROR
     assert "gpu_burn still running" in out.getvalue()
     assert not nvml.initialised
-    assert not (tmp_path / "results").exists()
+    # The lock and state files exist, but no result folder.
+    assert not [p for p in (tmp_path / "results").iterdir() if p.is_dir()]
 
 
 def test_mixed_classes_abort(tmp_path, fake_system):
@@ -169,7 +178,7 @@ def test_quick_run_goes_through_every_phase(
         launch=fake_launcher(launched),
     )
     assert code == ExitCode.PASS
-    (result_dir,) = (tmp_path / "results").iterdir()
+    (result_dir,) = [p for p in (tmp_path / "results").iterdir() if p.is_dir()]
     run = load_result_dir(result_dir)
     assert run.phases == expected_phases
     profile = config.load_profile("quick")
@@ -206,3 +215,145 @@ def test_quick_run_goes_through_every_phase(
         assert (result_dir / name).is_file()
     assert (result_dir / "charts" / "png" / "temperature.png").is_file()
     assert not nvml.initialised
+
+
+def quadro_pair(fake_system):
+    return FakeNvml(
+        [
+            make_device(i, pynvml.NVML_BRAND_QUADRO_RTX, ecc=False)
+            for i in (0, 1)
+        ],
+        fake_system,
+    )
+
+
+def result_dirs(root):
+    return [p for p in root.iterdir() if p.is_dir()]
+
+
+def interrupting_launcher(launched, number):
+    """Launch like fake_launcher, but deliver ``number`` at gpu_burn."""
+    inner = fake_launcher(launched)
+
+    def launch(argv, log_path):
+        process = inner(argv, log_path)
+        if Path(argv[0]).name == "gpu_burn":
+            signal.raise_signal(number)
+        return process
+
+    return launch
+
+
+@pytest.mark.parametrize("number", [signal.SIGINT, signal.SIGTERM])
+def test_stop_signal_during_burn_gives_incomplete_report(
+    tmp_path, fake_system, instant_sampler, number
+):
+    root = tmp_path / "results"
+    options = orchestrator.RunOptions("quick", None, root)
+    out = io.StringIO()
+    code = orchestrator.run(
+        options,
+        quadro_pair(fake_system),
+        out,
+        proc_root=tmp_path,
+        host_root=host_dir,
+        launch=interrupting_launcher([], number),
+    )
+    name = signal.Signals(number).name
+    assert code == ExitCode.INCOMPLETE
+    (result_dir,) = result_dirs(root)
+    summary = json.loads((result_dir / "summary.json").read_text())
+    assert summary["verdict"] == "INCOMPLETE"
+    assert summary["exit_code"] == ExitCode.INCOMPLETE
+    assert summary["incomplete_reasons"][0] == f"interrupted by {name}"
+    assert (result_dir / "report.docx").is_file()
+    state = run_state.read_state(root)
+    assert state["status"] == run_state.status_interrupted
+    assert state["exit_code"] == ExitCode.INCOMPLETE
+    assert not lock.is_held(root)
+    text = out.getvalue()
+    assert f"run: {name} received; stopping the test tools" in text
+    assert "run: stopped; verdict INCOMPLETE" in text
+    # console.log carries the same plain lines for attach.
+    log = (result_dir / "console.log").read_text(encoding="utf-8")
+    assert log.startswith("preflight: 2 GPU(s)")
+    assert "run: stopped; verdict INCOMPLETE" in log
+    # The default handlers are back after the run.
+    assert signal.getsignal(number) is not signals.raise_interrupted
+
+
+def test_second_run_is_refused_while_the_lock_is_held(tmp_path, fake_system):
+    root = tmp_path / "results"
+    holder = lock.RunLock(root)
+    assert holder.acquire()
+    try:
+        nvml = quadro_pair(fake_system)
+        out = io.StringIO()
+        options = orchestrator.RunOptions("quick", None, root)
+        code = orchestrator.run(options, nvml, out, proc_root=tmp_path)
+    finally:
+        holder.release()
+    assert code == ExitCode.ERROR
+    assert "another run holds" in out.getvalue()
+    assert not nvml.initialised
+    assert result_dirs(root) == []
+
+
+def test_json_output_is_one_object_per_line(
+    tmp_path, fake_system, instant_sampler
+):
+    options = orchestrator.RunOptions(
+        "quick", None, tmp_path / "results", output="json"
+    )
+    out = io.StringIO()
+    code = orchestrator.run(
+        options,
+        quadro_pair(fake_system),
+        out,
+        proc_root=tmp_path,
+        host_root=host_dir,
+        launch=fake_launcher([]),
+    )
+    assert code == ExitCode.PASS
+    lines = [json.loads(line) for line in out.getvalue().splitlines()]
+    kinds = {line["type"] for line in lines}
+    assert kinds == {"event", "tick", "verdict"}
+    (verdict,) = [line for line in lines if line["type"] == "verdict"]
+    assert verdict["verdict"] == "PASS"
+
+
+class SlowExitProcess(FakeProcess):
+    """gpu_burn that keeps running for a few polls after its window."""
+
+    running_polls = 3
+
+    def poll(self):
+        if self.running_polls:
+            self.running_polls -= 1
+            return None
+        return 0
+
+
+def test_telemetry_continues_while_gpu_burn_finishes(
+    tmp_path, fake_system, instant_sampler
+):
+    def launch(argv, log_path):
+        name = Path(argv[0]).name
+        kind = SlowExitProcess if name == "gpu_burn" else FakeProcess
+        return kind(argv, log_path, logs_dir / launched_logs[name])
+
+    root = tmp_path / "results"
+    code = orchestrator.run(
+        orchestrator.RunOptions("quick", None, root),
+        quadro_pair(fake_system),
+        io.StringIO(),
+        proc_root=tmp_path,
+        host_root=host_dir,
+        launch=launch,
+    )
+    assert code == ExitCode.PASS
+    (result_dir,) = result_dirs(root)
+    run = load_result_dir(result_dir)
+    finish = [s for s in run.samples if s["phase"] == "burn_finish"]
+    assert len(finish) == SlowExitProcess.running_polls * len(run.gpu_indices)
+    assert run.phases.index("burn_finish") == run.phases.index("cooldown") - 1

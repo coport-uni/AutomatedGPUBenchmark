@@ -29,15 +29,16 @@ A run goes through these phases:
 | idle | 60 s | 10 s | telemetry only |
 | burn_warmup | 300 s | 15 s | gpu_burn |
 | burn_steady | 600 s | 30 s | gpu_burn continues |
+| burn_finish | until gpu_burn exits | about 10 s | telemetry while gpu_burn finishes; not graded. Its workers keep loading the GPU here, because gpu_burn starts about 4 s late and keeps burning through its `-stts` wait |
 | cooldown | 120 s | 10 s | telemetry only |
 | vram | 600 s | 30 s | cuda_memtest `--stress` on every GPU |
 
 Available today: the phases above, the PASS/WARN/FAIL verdict and its
 exit status, the one-page A4 report (`report.docx` and `report.pdf`),
 `report.html`, `report.md`, the interactive `dashboard.html`, charts,
-the raw data, and the tool logs. **Not yet available:** the live
-console, `status`, `attach`, and `stop` (M6), the optional tests (M7),
-and `compare`.
+the raw data, the tool logs, the live, plain, and JSON console, and
+`status`, `attach`, and `stop` for detached runs. **Not yet
+available:** the optional tests (M7) and `compare`.
 `example/GPU_Burn-in_Report_Sample.pdf` shows the report layout. It
 was generated from synthetic data during specification.
 
@@ -185,17 +186,109 @@ default, picks the profile named after the detected class. Its phases
 add up to 1680 s, about 30 minutes; the optional tests of M7 will add
 300 s (consumer) or 900 s (datacenter). `--gpu-class` overrides the
 detected class.
-The live TTY console for `docker exec -it` arrives in M6.
+
+With a terminal, `docker exec -it` shows the live console: events
+scroll, and a status block below them is redrawn every second. This
+frame is from the M6 verification run, captured through a
+pseudo-terminal:
+
+```bash
+docker exec -it gpubench gpubench run --profile quick
+```
+```
+burn: gpu_burn for 45 s, log /results/gpubench-dev_20260929-050358/logs/gpu_burn.log
+burn_steady  [####--------------------] 5/30  elapsed 00:28
+  gpu0   60 C   258.62 W   1545 MHz  util 100 %
+  gpu1   61 C   259.42 W   1530 MHz  util 100 %
+```
+
+`--output auto`, the default, picks live on a terminal and plain lines
+otherwise; `--output live`, `plain`, or `json` forces a mode.
+
+Ctrl+C stops the test tools, writes the report with the verdict
+INCOMPLETE, and exits with status 3 (output of that run, per-second
+lines left out):
+
+```
+run: SIGINT received; stopping the test tools
+verdict: Compute errors: gpu0 N/A (no verdict), gpu1 N/A (no verdict)
+...
+verdict: incomplete: interrupted by SIGINT
+verdict: INCOMPLETE
+report: rendering charts and reports
+report: /results/gpubench-dev_20260929-050358/report.pdf
+run: stopped; verdict INCOMPLETE
+```
+
+The run ignores SIGHUP, so a closed SSH session does not end it.
+Only one run at a time can use a results folder; a second one is
+refused:
+
+```
+preflight: another run holds /results/.lock (pid 15, results /results/gpubench-dev_20260929-050136); see gpubench status
+```
 
 ## 7. Long Runs over SSH
 
-Not available yet (M6): `status`, `attach`, and `stop` currently exit
-with status 4.
+Start the run detached, then check on it from any later session:
+
+```bash
+docker exec -d gpubench gpubench run --profile quick
+docker exec gpubench gpubench status
+```
+```
+status: running, pid 9, started 2026-09-29T05:06:15.814Z, results /results/gpubench-dev_20260929-050615
+status: phase burn_steady 4/30
+status: last event: burn: gpu_burn for 45 s, log /results/gpubench-dev_20260929-050615/logs/gpu_burn.log
+status: gpu0 54 C 259.56 W 1575 MHz util 100 %
+status: gpu1 54 C 258.04 W 1560 MHz util 100 %
+```
+
+`attach` follows the console of the running test from its first line.
+Ctrl+C detaches without stopping the run:
+
+```bash
+docker exec -it gpubench gpubench attach
+```
+```
+attach: following /results/gpubench-dev_20260929-050136/console.log; Ctrl+C detaches
+preflight: 2 GPU(s), class workstation, profile quick, results /results/gpubench-dev_20260929-050136
+...
+attach: detached; the run continues
+```
+
+When the run ends while attached, `attach` exits with the run's status.
+`stop` sends SIGTERM and waits until the INCOMPLETE report is written:
+
+```bash
+docker exec gpubench gpubench stop
+```
+```
+stop: sending SIGTERM to pid 9 (results /results/gpubench-dev_20260929-050615)
+stop: run ended: interrupted, verdict INCOMPLETE, exit 3
+```
+
+`status` exits with 0. `attach` and `stop` exit with 4 when no run is
+in progress. Every run also keeps its console in `console.log` in the
+result folder.
 
 ## 8. Scripted and CI Use
 
 `docker exec` without `-t` prints plain lines, as shown in section 6.
-JSON console output arrives in M6.
+`--output json` prints one JSON object per line, with the types
+`event`, `tick`, and `verdict`:
+
+```bash
+docker exec gpubench gpubench run --profile quick --output json
+```
+```
+{"type": "event", "ts": "2026-09-29T05:07:01.714Z", "message": "preflight: 2 GPU(s), class workstation, profile quick, results /results/gpubench-dev_20260929-050701"}
+{"type": "tick", "ts": "2026-09-29T05:07:40.866Z", "phase": "burn_steady", "number": 16, "total": 30, "gpus": [{"index": 0, "temp_gpu": 64, "power_draw": 253.3, "clk_sm": 1530, "util_gpu": 100, "mem_used": 21965}, {"index": 1, "temp_gpu": 65, "power_draw": 255.7, "clk_sm": 1530, "util_gpu": 100, "mem_used": 21232}]}
+{"type": "event", "ts": "2026-09-29T05:08:48.982Z", "message": "run: finished in 102 s; verdict PASS"}
+```
+
+The `verdict` object carries `verdict`, `exit_code`,
+`incomplete_reasons`, and every rule with its grade per GPU.
 
 | Exit status | Meaning |
 |---|---|
@@ -203,16 +296,19 @@ JSON console output arrives in M6.
 | 1 | WARN |
 | 2 | FAIL |
 | 3 | INCOMPLETE: interrupted, or a tool result is missing (for example gpu_burn printed no verdict) |
-| 4 | Error, for example a leftover `gpu_burn`, no GPU, or a usage error |
+| 4 | Error, for example another run holding the lock, a leftover `gpu_burn`, no GPU, a failed report, or a usage error |
 
 ## 9. Results
 
-Each run writes `results/<hostname>_<YYYYMMDD-HHMMSS>/`:
+Each run writes `results/<hostname>_<YYYYMMDD-HHMMSS>/`. The results
+folder itself also holds `.lock` and `.state.json`, which `status`,
+`attach`, and `stop` read:
 
 ```
 charts/
     png/    clk_sm, fan_speed, memory_used, power, temperature,
     svg/    throttle, utilization (.png at 300 dpi, .svg)
+console.log
 logs/
     cuda_memtest_gpu0.log
     cuda_memtest_gpu1.log
@@ -233,6 +329,7 @@ telemetry.jsonl
 | `sysinfo.json` | GPUs (brand, class, VBIOS, ECC mode, slowdown and shutdown temperatures, power limit, maximum clocks, PCIe), driver, CUDA, CPU, memory, OS, and the profile used |
 | `summary.json` | Verdict and exit code, the grade of every rule per GPU, per-GPU metrics, incomplete reasons, and the raw runner results |
 | `logs/*.log` | Raw tool output; it never reaches the console |
+| `console.log` | The console of the run as plain lines; `attach` follows it |
 | `report.docx` | One-page A4 report in Korean; edit it and run `gpubench pdf` (section 11) |
 | `report.pdf` | `report.docx` converted by LibreOffice |
 | `report.html` | The same report with the charts embedded, for a browser |
@@ -339,6 +436,8 @@ and `cuda_memtest.stress`.
 | `report: failed: report.docx violates the OOXML schema ...`, exit status 4 | A bug in the report builder. The verdict is still in `summary.json`; open an issue with the message |
 | `pdf skipped: LibreOffice is not installed` or `gpubench pdf: LibreOffice with python3-uno is not installed` | `gpubench` runs outside the image. Run `plot` or `pdf` in the container (section 11) |
 | Korean text in charts shows as boxes | Noto Sans CJK is missing, which happens only outside the image. Render inside the container |
+| `preflight: another run holds /results/.lock ...`, exit status 4 | A run is in progress. Check it with `gpubench status`, follow it with `attach`, or end it with `stop` (section 7). The lock is released when the process exits, even after a crash |
+| The console shows escape codes such as `[3F[J` | Output went to a terminal that does not understand ANSI codes. Use `--output plain` |
 
 The remaining entries of `docs/DevSpec.md` section 5 are added with the
 features they describe.
@@ -377,12 +476,13 @@ pytest -q
 ```
 ```
 All checks passed!
-46 files already formatted
-133 passed, 3 skipped in 12.55s
+55 files already formatted
+164 passed, 5 skipped in 21.22s
 ```
 
 Outside the image, the schema and PDF tests skip because the host has
-no OOXML schemas and no LibreOffice. Run them inside the image, where
+no OOXML schemas and no LibreOffice; the process group and SIGHUP
+tests need Linux. Run them inside the image, where
 none may skip:
 
 ```bash
@@ -390,7 +490,7 @@ docker run --rm -v "$PWD:/src" -w /src gpubench \
     sh -c 'pip install --quiet pytest && pytest -q -rs tests/'
 ```
 ```
-136 passed in 17.06s
+169 passed in 36.18s
 ```
 
 ## 16. License and Third-party

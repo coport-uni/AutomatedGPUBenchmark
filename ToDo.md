@@ -238,7 +238,7 @@ Relevant patterns: LP E4 (driver stubs), E5 (`MSYS_NO_PATHCONV`), W4
 - [x] Hardware run `gpubench run --profile quick` with GPU load;
       Gflop/s per GPU, raw output only in `logs/`, leftover check
 - [x] Commit, push, PR, issue update
-- [ ] Follow-up (M6): telemetry pauses while gpu_burn finishes after
+- [x] Follow-up (M6): telemetry pauses while gpu_burn finishes after
       the sampling window (about 8 s with `-stts 5`); sample during
       that wait under a documented label
 
@@ -361,7 +361,7 @@ L4 (`w:zoom w:percent`).
 - [x] CLI `plot`, `pdf`; orchestrator renders after the verdict
 - [x] Dockerfile: LibreOffice, python3-uno, fonts-noto-cjk, schemas
 - [x] Tests on the real fixtures; CI runs container tests
-- [ ] Hardware run renders the report; operator reviews the PDF
+- [x] Hardware run renders the report; operator reviews the PDF
 - [x] Verification 2026-09-29: 136 tests pass inside the image (schema
       and PDF tests included), 133 pass and 3 skip on the host; quick
       run on 2x Quadro RTX 6000 gave PASS, exit 0, and a one-page
@@ -369,5 +369,72 @@ L4 (`w:zoom w:percent`).
       to one page without the `12 건` spacing (LP L1)
 - [x] LearnedPatterns: R1, L7, L8, L9; README sections 1, 2, 6, 9, 10,
       11, 13, 15, 16 updated
-- [ ] Operator review of the hardware `report.pdf` layout (pending;
+- [x] Operator review of the hardware `report.pdf` layout (pending;
       layout changes go to a follow-up issue)
+- [x] Operator approved the PDF (2026-09-29, "좋은 것 같아"); PR #15
+      merged
+
+---
+
+## 9. M6: console, runtime, docker exec behaviour
+
+### Background
+User request (2026-09-29): merge PR #15 and continue with M6. DevSpec
+section 6 row M6 and section 4.8: live, plain, and json console;
+`status`, `attach`, `stop`; `/results/.lock`; SIGINT and SIGTERM stop
+the tool process groups, write an INCOMPLETE report, and exit 3;
+SIGHUP is ignored. Also the M3 follow-up in ToDo section 5: telemetry
+pauses while gpu_burn finishes after its sampling window. Relevant
+patterns: LP L5 (gpu_burn `-stts` wait), E5 (MSYS path conversion),
+W3 (`git -C`), R1 (no backslashes through Bash).
+
+### Decisions (2026-09-29)
+- Console modes: `auto` picks live when stdout is a TTY, plain
+  otherwise; `json` prints one JSON object per line. Live mode uses
+  ANSI escape codes only (no new dependency): event lines scroll, a
+  per-GPU status block is redrawn in place.
+- Every run also writes the plain console to `<result>/console.log`;
+  `attach` follows that file until the run ends.
+- `<results-root>/.lock` is held with `flock` for the whole run; a
+  second run exits 4 and names the running result folder.
+  `<results-root>/.state.json` (replaced atomically every tick) holds
+  pid, result folder, phase, progress, and the latest readings for
+  `status`.
+- `stop` sends SIGTERM to the run's pid and waits for the lock to be
+  released. SIGINT and SIGTERM share one path: stop the tools, write
+  summary and report with verdict INCOMPLETE (reason `interrupted by
+  SIGINT` or `SIGTERM`), exit 3. Further signals during that cleanup
+  are ignored. SIGHUP is ignored for the whole run.
+- Samples taken after the burn window while gpu_burn finishes are
+  labelled `burn_finish`; they are not graded and the charts show the
+  phase.
+
+### Tasks
+- [x] Issue, branch `feat/m6-console-runtime`
+- [x] `console/mode.py`, `console/plain.py`, `console/live.py`, json
+- [x] `runtime/lock.py`, `runtime/state.py`, `runtime/signals.py`
+- [x] Orchestrator: console, lock, state, signals, INCOMPLETE report
+- [x] `burn_finish` sampling during the gpu_burn exit wait
+- [x] CLI `status`, `attach`, `stop`, `--output`, `--results-root`
+- [x] Unit tests: mode detection, lock, state file, signals, exit codes
+- [x] Hardware (quick, heating confirmed): `docker exec` plain; live
+      through a pty; `--output json`; SIGINT during burn gives exit 3
+      and an INCOMPLETE report; `kill -HUP` ignored; `docker exec -d`
+      with `status`, `attach`, `stop`; second run refused by the lock
+- [x] README sections 6, 7, 8, 13; LearnedPatterns; PR
+- [x] Hardware 2026-09-29, 2x Quadro RTX 6000, quick profile, four
+      runs: (1) plain `docker exec`, `status`, `kill -HUP` ignored,
+      second run refused (exit 4), `attach` then detach; PASS, exit 0,
+      10 `burn_finish` ticks, no telemetry gap. (2) live mode through
+      `script -qec`, SIGINT at steady 6/30: INCOMPLETE report, exit 3.
+      (3) `docker exec -d`, `status`, `stop`: INCOMPLETE, exit 3, no
+      tool process left. (4) `--output json`: 118 JSON lines, PASS,
+      exit 0. Signals were sent with `kill`; the operator did not
+      watch the runs live.
+- [x] Found and fixed during verification: partial-run report crash
+      (LP G4), false "0 errors" and PASS rows in INCOMPLETE reports
+      (G5), stray worker after stop (group SIGKILL after the leader),
+      traceback exit 1 read as WARN (G6)
+- [x] Tests: 164 passed and 5 skipped on the host, 169 passed in the
+      image; LearnedPatterns G4, G5, G6, L10, W5
+- [ ] Operator confirms the M6 hardware evidence before merge

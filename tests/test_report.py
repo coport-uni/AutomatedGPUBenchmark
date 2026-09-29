@@ -243,3 +243,32 @@ def test_pdf_is_one_page_without_cjk_digit_spacing(result_dir):
     text = PdfReader(str(files.pdf)).pages[0].extract_text()
     assert "0건" in text
     assert "0 건" not in text
+
+
+def incomplete_context(ctx):
+    """Return a copy of ``ctx`` stopped before gpu_burn and VRAM ended."""
+    changed = copy.deepcopy(ctx)
+    for rule in changed.evaluation["rules"]:
+        if rule["key"] in ("compute_errors", "vram_errors"):
+            for gpu in rule["gpus"]:
+                gpu["grade"] = "N/A"
+    changed.evaluation["verdict"] = "INCOMPLETE"
+    changed.evaluation["incomplete_reasons"] = ["interrupted by SIGINT"]
+    return changed
+
+
+def test_incomplete_run_claims_no_clean_result(ctx):
+    report = content.build(incomplete_context(ctx))
+    assert context.strings()["summary_clean"] not in report.summary
+    assert "interrupted by SIGINT" in report.summary
+    assert {row[-1].grade for row in report.gpu_rows} == {"INCOMPLETE"}
+
+
+def test_incomplete_run_keeps_a_gpu_warning(ctx):
+    changed = incomplete_context(warn_context(ctx))
+    changed.evaluation["verdict"] = "INCOMPLETE"
+    report = content.build(changed)
+    assert [row[-1].grade for row in report.gpu_rows] == [
+        "INCOMPLETE",
+        "WARN",
+    ]

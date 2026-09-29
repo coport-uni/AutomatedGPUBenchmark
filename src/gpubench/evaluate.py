@@ -295,9 +295,34 @@ def evaluate_result_dir(result_dir: Path) -> dict[str, Any]:
     return evaluate(gpu_metrics, burn, ratio_min)
 
 
-def write_evaluation(result_dir: Path, summary_file: str) -> dict[str, Any]:
-    """Evaluate ``result_dir`` and merge the result into its summary."""
+def mark_interrupted(evaluation: dict[str, Any], reason: str) -> None:
+    """Force the verdict of an interrupted run to INCOMPLETE.
+
+    The rule grades stay as measured, so the report still shows what
+    was found before the stop (DevSpec 4.8).
+    """
+    evaluation["incomplete_reasons"] = [
+        reason,
+        *evaluation.get("incomplete_reasons", []),
+    ]
+    evaluation["verdict"] = Grade.INCOMPLETE.value
+    evaluation["exit_code"] = int(ExitCode.INCOMPLETE)
+
+
+def write_evaluation(
+    result_dir: Path, summary_file: str, interrupted: str | None = None
+) -> dict[str, Any]:
+    """Evaluate ``result_dir`` and merge the result into its summary.
+
+    Args:
+        result_dir: Result folder to evaluate.
+        summary_file: Name of the summary inside ``result_dir``.
+        interrupted: Reason the run was stopped early, if it was; the
+            verdict is then INCOMPLETE regardless of the grades.
+    """
     evaluation = evaluate_result_dir(result_dir)
+    if interrupted:
+        mark_interrupted(evaluation, interrupted)
     path = result_dir / summary_file
     summary = json.loads(path.read_text()) if path.is_file() else {}
     summary.update(evaluation)

@@ -75,7 +75,7 @@ def build_figure(ctx: ReportContext) -> go.Figure:
                     showlegend=row == 1,
                     line={"color": theme.gpu_colour(series.index)},
                     customdata=[
-                        text["phases"].get(p, p) for p in series.phases
+                        text["phases"].get(p) or p for p in series.phases
                     ],
                     hovertemplate=(
                         f"GPU {series.index}: %{{y}} {unit}"

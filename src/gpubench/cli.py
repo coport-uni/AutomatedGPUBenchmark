@@ -1,9 +1,9 @@
 """Command-line entry point for gpubench.
 
 The subcommands follow DevSpec section 3: ``run``, ``status``,
-``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. ``run``,
-``plot``, and ``pdf`` are implemented; the others parse their arguments
-and report that the implementation is missing, exiting with
+``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. All but
+``compare`` are implemented; ``compare`` parses its arguments and
+reports that the implementation is missing, exiting with
 ``ExitCode.ERROR``.
 """
 
@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 from collections.abc import Sequence
 from pathlib import Path
 
 from gpubench import __version__
+from gpubench.console import mode as console_mode
 from gpubench.runtime.exit_codes import ExitCode
 
 gpu_classes = ("consumer", "workstation", "datacenter")
-output_modes = ("auto", "live", "plain", "json")
 default_profile = "auto"
 default_results_root = "/results"
 
@@ -67,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--output",
-        choices=output_modes,
+        choices=console_mode.output_modes,
         default="auto",
         help="Console mode; 'auto' selects live on a TTY, plain otherwise.",
     )
@@ -77,9 +78,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory that receives one result folder per run.",
     )
 
-    commands.add_parser("status", help="Show the state of a running test.")
-    commands.add_parser("attach", help="Follow the console of a running test.")
-    commands.add_parser("stop", help="Stop a running test and keep a report.")
+    control_help = {
+        "status": "Show the state of a running test.",
+        "attach": "Follow the console of a running test; Ctrl+C detaches.",
+        "stop": "Stop a running test and keep an INCOMPLETE report.",
+    }
+    for name, text in control_help.items():
+        control = commands.add_parser(name, help=text)
+        control.add_argument(
+            "--results-root",
+            default=default_results_root,
+            help="Results directory of the run (default: %(default)s).",
+        )
 
     plot = commands.add_parser(
         "plot", help="Re-render charts and reports from a result folder."
@@ -140,8 +150,41 @@ def pdf(result_dir: Path) -> int:
     return int(ExitCode.PASS)
 
 
+def dispatch(args: argparse.Namespace) -> int:
+    """Run the command selected in ``args``."""
+    if args.command == "run":
+        # Imported here so that commands which never touch the GPU do
+        # not pay for loading NVML bindings.
+        from gpubench import orchestrator
+
+        options = orchestrator.RunOptions(
+            profile=args.profile,
+            gpu_class=args.gpu_class,
+            results_root=Path(args.results_root),
+            output=args.output,
+        )
+        return int(orchestrator.run(options))
+    if args.command in ("status", "attach", "stop"):
+        from gpubench.runtime import control
+
+        command = getattr(control, args.command)
+        return int(command(Path(args.results_root), sys.stdout))
+    if args.command == "plot":
+        return plot(Path(args.result_dir))
+    if args.command == "pdf":
+        return pdf(Path(args.result_dir))
+    print(
+        f"gpubench {args.command}: not implemented yet",
+        file=sys.stderr,
+    )
+    return int(ExitCode.ERROR)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Parse ``argv`` and dispatch to the selected command.
+
+    An unexpected exception exits with ``ExitCode.ERROR``: Python's own
+    status 1 would read as a WARN verdict to a calling script.
 
     Args:
         argv: Command-line arguments without the program name. ``None``
@@ -152,26 +195,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     parser = build_parser()
     args = parser.parse_args(argv)
-    if args.command == "run":
-        # Imported here so that commands which never touch the GPU do
-        # not pay for loading NVML bindings.
-        from gpubench import orchestrator
-
-        options = orchestrator.RunOptions(
-            profile=args.profile,
-            gpu_class=args.gpu_class,
-            results_root=Path(args.results_root),
+    try:
+        return dispatch(args)
+    except Exception:
+        traceback.print_exc()
+        print(
+            f"gpubench {args.command}: unexpected error, exit status "
+            f"{int(ExitCode.ERROR)}",
+            file=sys.stderr,
         )
-        return int(orchestrator.run(options))
-    if args.command == "plot":
-        return plot(Path(args.result_dir))
-    if args.command == "pdf":
-        return pdf(Path(args.result_dir))
-    print(
-        f"gpubench {args.command}: not implemented yet",
-        file=sys.stderr,
-    )
-    return int(ExitCode.ERROR)
+        return int(ExitCode.ERROR)
 
 
 if __name__ == "__main__":
