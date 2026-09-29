@@ -32,11 +32,11 @@ A run goes through these phases:
 | cooldown | 120 s | 10 s | telemetry only |
 | vram | 600 s | 30 s | cuda_memtest `--stress` on every GPU |
 
-Available today: the phases above, `telemetry.jsonl`, `sysinfo.json`,
-`summary.json`, and the raw tool logs. **Not yet available:** the
-PASS/WARN/FAIL verdict (M4), charts and the one-page A4 report in
-`report.docx` and `report.pdf` (M5), and the live console (M6). Until
-M4, a finished run exits with status 3 (INCOMPLETE).
+Available today: the phases above, the PASS/WARN/FAIL verdict and its
+exit status, `telemetry.jsonl`, `sysinfo.json`, `summary.json`, and
+the raw tool logs. **Not yet available:** charts and the one-page A4
+report in `report.docx` and `report.pdf` (M5), and the live console
+(M6).
 `example/GPU_Burn-in_Report_Sample.pdf` shows the planned report. It
 was generated from synthetic data during specification.
 
@@ -152,20 +152,30 @@ docker exec gpubench gpubench run --profile quick
 Output excerpt (the console prints one line per second):
 
 ```
-preflight: 2 GPU(s), class workstation, profile quick, results /results/e29784e959dc_20260929-000104
+preflight: 2 GPU(s), class workstation, profile quick, results /results/gpubench-dev_20260929-002048
 preflight: gpu0 Quadro RTX 6000 (Quadro RTX), unsupported: temp_mem, ecc_corr, ecc_uncorr, remap_corr, remap_uncorr, remap_pending, remap_failure
-[idle 1/10] gpu0 29 C 21.17 W 300 MHz | gpu1 29 C 13.7 W 300 MHz
-burn: gpu_burn for 45 s, log /results/e29784e959dc_20260929-000104/logs/gpu_burn.log
-[burn_steady 1/30] gpu0 43 C 259.25 W 1605 MHz | gpu1 44 C 255.04 W 1590 MHz
-[burn_steady 30/30] gpu0 60 C 254.43 W 1560 MHz | gpu1 61 C 258.55 W 1515 MHz
-burn: gpu0 14017.0 Gflop/s max, 0 errors, verdict OK
-burn: gpu1 13976.0 Gflop/s max, 0 errors, verdict OK
+[idle 1/10] gpu0 29 C 20.91 W 300 MHz | gpu1 29 C 12.29 W 300 MHz
+burn: gpu_burn for 45 s, log /results/gpubench-dev_20260929-002048/logs/gpu_burn.log
+[burn_steady 1/30] gpu0 43 C 260.36 W 1605 MHz | gpu1 44 C 255.5 W 1590 MHz
+[burn_steady 30/30] gpu0 60 C 255.66 W 1545 MHz | gpu1 61 C 252.62 W 1530 MHz
+burn: gpu0 13923.0 Gflop/s max, 0 errors, verdict OK
+burn: gpu1 13979.0 Gflop/s max, 0 errors, verdict OK
 vram: cuda_memtest on 2 GPU(s)
-[vram 30/30] gpu0 66 C 204.96 W 1890 MHz | gpu1 67 C 202.67 W 1875 MHz
+[vram 30/30] gpu0 66 C 197.14 W 1890 MHz | gpu1 67 C 204.92 W 1875 MHz
 vram: gpu0 1 tests, 0 pattern errors
 vram: gpu1 2 tests, 0 pattern errors
-run: finished in 102 s; evaluation not implemented yet (M4); INCOMPLETE
+verdict: Compute errors: gpu0 PASS (OK, 0 errors), gpu1 PASS (OK, 0 errors)
+verdict: VRAM pattern errors: gpu0 PASS (0 errors in 1 tests), gpu1 PASS (0 errors in 2 tests)
+verdict: ECC uncorrectable increase: gpu0 N/A (ECC not reported), gpu1 N/A (ECC not reported)
+verdict: HW slowdown, HW thermal, power brake: gpu0 PASS (0 s), gpu1 PASS (0 s)
+verdict: SW thermal slowdown: gpu0 PASS (0 s), gpu1 PASS (0 s)
+verdict: Maximum temperature: gpu0 PASS (66 C (limit 91 C)), gpu1 PASS (67 C (limit 91 C))
+verdict: GPU-to-GPU throughput: gpu0 PASS (99.9% of fastest (13333 Gflop/s)), gpu1 PASS (100.0% of fastest (13345 Gflop/s))
+run: finished in 102 s; verdict PASS
 ```
+
+The exit status of `docker exec` is the verdict (section 8); this run
+exited with 0.
 
 The `quick` profile took 102 s on this host. `--profile auto`, the
 default, picks the profile named after the detected class. Its phases
@@ -189,7 +199,7 @@ JSON console output arrives in M6.
 | 0 | PASS |
 | 1 | WARN |
 | 2 | FAIL |
-| 3 | INCOMPLETE (every finished run until M4, or an interrupted run) |
+| 3 | INCOMPLETE: interrupted, or a tool result is missing (for example gpu_burn printed no verdict) |
 | 4 | Error, for example a leftover `gpu_burn`, no GPU, or a usage error |
 
 ## 9. Results
@@ -210,7 +220,7 @@ telemetry.jsonl
 |---|---|
 | `telemetry.jsonl` | One JSON line per GPU per second: phase, temperatures, power, clocks, utilisation, memory, fan, pstate, clocks event reasons, ECC and row-remap counters, PCIe. Unsupported fields are `null` |
 | `sysinfo.json` | GPUs (brand, class, VBIOS, ECC mode, slowdown and shutdown temperatures, power limit, maximum clocks, PCIe), driver, CUDA, CPU, memory, OS, and the profile used |
-| `summary.json` | gpu_burn Gflop/s, error counts and verdict per GPU; cuda_memtest tests finished and pattern errors per GPU |
+| `summary.json` | Verdict and exit code, the grade of every rule per GPU, per-GPU metrics, incomplete reasons, and the raw runner results |
 | `logs/*.log` | Raw tool output; it never reaches the console |
 
 `report.docx`, `report.pdf`, `report.html`, `report.md`,
@@ -218,8 +228,37 @@ telemetry.jsonl
 
 ## 10. Reading the Report
 
-Not available yet (M4 for the verdict rules, M5 for the report). The
-rules and their sources are listed in `docs/DevSpec.md` section 4.4.
+The printed report arrives in M5. The verdict already exists in
+`summary.json` and on the console.
+
+Only thresholds documented by NVIDIA or by the tool in use are graded.
+Grades follow DCGM error severity: ISOLATE and RESET become FAIL,
+MONITOR becomes WARN. The run verdict is the worst grade of any GPU;
+N/A never lowers it.
+
+| Rule | Criterion | Grade if violated | Source |
+|---|---|---|---|
+| Compute errors | gpu_burn reports OK | FAIL | gpu-burn verdict |
+| VRAM pattern errors | 0 errors | FAIL | DCGM memtest: any error fails |
+| ECC uncorrectable increase | 0 | FAIL | DCGM: DBE error is ISOLATE |
+| HW slowdown, HW thermal, power brake | never active | WARN | NVML clocks event reasons; DCGM clocks event is MONITOR |
+| SW thermal slowdown | never active | WARN | same |
+| Maximum temperature | below the GPU slowdown temperature the GPU reports | WARN | nvidia-smi; DCGM temperature violation is MONITOR |
+| GPU-to-GPU throughput | at least 90 % of the fastest GPU (mean Gflop/s) | FAIL | gpu-fryer default tolerance 10 % |
+
+Only `burn_steady` and `vram` samples are graded; warm-up, idle, and
+cooldown are context. A rule is N/A when the GPU does not report the
+value (ECC on boards with ECC disabled, for example) or cannot apply
+(the GPU ratio with one GPU).
+
+Reported but never graded: SM clock retention (steady mean over rated
+maximum), steady mean temperature, maximum power, and time at the SW
+power cap. The Quadro RTX 6000 pair above spends all of `burn_steady`
+at its 260 W power cap, which is expected under gpu_burn.
+
+A run is INCOMPLETE when a tool result is missing: gpu_burn printed no
+verdict, a GPU has no samples in the graded phases, or cuda_memtest
+finished no test or reported an error without a pattern count.
 
 ## 11. Re-rendering and Comparing
 

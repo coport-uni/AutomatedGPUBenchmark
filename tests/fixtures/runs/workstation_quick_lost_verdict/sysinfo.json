@@ -1,0 +1,78 @@
+{
+  "hostname": "gpubench-dev",
+  "captured_at": "2026-09-28T17:03:16.315Z",
+  "synthetic": false,
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-34a52002-1cb4-55c1-dbe6-1c5ec554e856",
+      "name": "Quadro RTX 6000",
+      "brand": "Quadro RTX",
+      "gpu_class": "workstation",
+      "vbios": "90.02.56.00.01",
+      "memory_total_mib": 24576,
+      "ecc_mode": "disabled",
+      "temp_slowdown_c": 91,
+      "temp_shutdown_c": 94,
+      "power_limit_default_w": 260.0,
+      "clk_sm_max": 2100,
+      "clk_mem_max": 7001,
+      "pcie_gen_max": 3,
+      "pcie_width_max": 16,
+      "unsupported_fields": [
+        "temp_mem",
+        "ecc_corr",
+        "ecc_uncorr",
+        "remap_corr",
+        "remap_uncorr",
+        "remap_pending",
+        "remap_failure"
+      ]
+    },
+    {
+      "index": 1,
+      "uuid": "GPU-45994475-78d8-499b-00a1-65696b061259",
+      "name": "Quadro RTX 6000",
+      "brand": "Quadro RTX",
+      "gpu_class": "workstation",
+      "vbios": "90.02.56.00.01",
+      "memory_total_mib": 24576,
+      "ecc_mode": "disabled",
+      "temp_slowdown_c": 91,
+      "temp_shutdown_c": 94,
+      "power_limit_default_w": 260.0,
+      "clk_sm_max": 2100,
+      "clk_mem_max": 7001,
+      "pcie_gen_max": 3,
+      "pcie_width_max": 16,
+      "unsupported_fields": [
+        "temp_mem",
+        "ecc_corr",
+        "ecc_uncorr",
+        "remap_corr",
+        "remap_uncorr",
+        "remap_pending",
+        "remap_failure"
+      ]
+    }
+  ],
+  "driver_version": "596.72",
+  "cuda_version": "13.2",
+  "cpu": {
+    "model": "AMD Ryzen 7 5800X 8-Core Processor",
+    "cores": 8,
+    "threads": 16
+  },
+  "memory": {
+    "total_mib": 15944,
+    "configuration": null
+  },
+  "os": {
+    "name": "Ubuntu 24.04.1 LTS",
+    "kernel": "6.6.87.2-microsoft-standard-WSL2"
+  },
+  "run": {
+    "profile": "quick",
+    "gpu_class": "workstation"
+  }
+}

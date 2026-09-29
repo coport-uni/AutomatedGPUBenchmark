@@ -275,3 +275,46 @@ without a README to update. The full README stays in M8. PRs #2, #4,
       top level of `workstation.yaml` and `datacenter.yaml` instead of
       under `phases`, so it was ignored; new config test catches it
 - [x] Drop the stale "(M1 skeleton)" from the stub message
+
+---
+
+## 7. M4: analysis and evaluate
+
+### Background
+User request (2026-09-29): merge PR #11 into main and continue with
+M4, M5, and M6. M4 is DevSpec section 6 row M4, verified with fixture
+tests only (ToDo section 1 row M4). Reference: DevSpec 4.1 (warm-up is
+kept out of the verdict), 4.4 (rules, grades, sources), 4.8 (exit
+codes). Relevant patterns: LP E3 (null fields become N/A), L5, G3.
+
+### Decisions (2026-09-29)
+- Judged phases are `burn_steady` and `vram`; warm-up, idle, and
+  cooldown are shown but never graded (DevSpec 4.1).
+- Evaluation reads only the result folder: telemetry, sysinfo, and the
+  raw tool logs are parsed again, so an old folder can be re-evaluated
+  after a parser fix.
+- Rules, all sourced as in DevSpec 4.4: compute errors (FAIL), VRAM
+  pattern errors (FAIL), ECC uncorrected increase (FAIL), HW slowdown
+  / HW thermal / power brake (WARN), SW thermal slowdown (WARN),
+  maximum temperature below the reported slowdown temperature (WARN),
+  GPU-to-GPU Gflop/s at least 90 % of the fastest (FAIL). Row-remap
+  counters are recorded but not graded: DevSpec 4.4 lists no rule.
+- Throughput for the GPU ratio is the mean of gpu_burn's per-record
+  Gflop/s, as gpu-fryer compares mean throughput.
+- Missing tool results (gpu_burn without verdict, cuda_memtest
+  without a finished test) make the run INCOMPLETE (exit 3).
+- Real fixtures: the quick runs of 2026-09-28 17:07 (complete) and
+  17:03 (gpu_burn verdict lost, LP L5).
+
+### Tasks
+- [x] Issue (#12), branch `feat/m4-evaluate`
+- [x] `analysis/phases.py`, `analysis/metrics.py`
+- [x] `evaluate.py`: rules, grades, overall verdict, exit code
+- [x] Orchestrator writes the verdict into `summary.json` and exits
+      with it
+- [x] Fixture tests: one PASS, WARN, FAIL, N/A case per rule, exit
+      code mapping, real complete and incomplete runs
+- [x] ruff, pytest, CI; commit, push, PR
+- [x] Orchestrator changed the exit path, so the quick profile was run
+      once on the real GPUs: verdict PASS, exit 0; README sections 1,
+      6, 8, 9, 10 updated from that run

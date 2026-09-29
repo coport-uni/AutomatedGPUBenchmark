@@ -1,4 +1,4 @@
-"""Tests for the run orchestration up to the idle phase."""
+"""Tests for the run orchestration through every phase."""
 
 import datetime as dt
 import io
@@ -168,13 +168,15 @@ def test_quick_run_goes_through_every_phase(
         host_root=host_dir,
         launch=fake_launcher(launched),
     )
-    assert code == ExitCode.INCOMPLETE
+    assert code == ExitCode.PASS
     (result_dir,) = (tmp_path / "results").iterdir()
     run = load_result_dir(result_dir)
     assert run.phases == expected_phases
-    expected_run = {"profile": "quick", "gpu_class": "workstation"}
-    assert run.sysinfo["run"] == expected_run
     profile = config.load_profile("quick")
+    assert run.sysinfo["run"]["profile"] == "quick"
+    assert run.sysinfo["run"]["gpu_class"] == "workstation"
+    interval = profile["sampling_interval_s"]
+    assert run.sysinfo["run"]["sampling_interval_s"] == interval
     idle = [s for s in run.samples if s["phase"] == "idle"]
     assert len(idle) // len(run.gpu_indices) == profile["phases"]["idle_s"]
     assert all(s["ecc_corr"] is None for s in run.samples)
@@ -187,11 +189,15 @@ def test_quick_run_goes_through_every_phase(
     burn_seconds += profile["phases"]["burn_steady_s"]
     assert launched[0].argv[-1] == str(burn_seconds)
     summary = json.loads((result_dir / "summary.json").read_text())
-    assert summary["status"] == "INCOMPLETE"
+    assert summary["status"] == "PASS"
+    assert summary["exit_code"] == ExitCode.PASS
     burn = summary["runners"]["gpu_burn"]
     assert burn["complete"]
     assert [g["verdict"] for g in burn["gpus"]] == ["OK", "OK"]
     assert [m["index"] for m in summary["runners"]["cuda_memtest"]] == [0, 1]
     assert (result_dir / "logs" / "gpu_burn.log").is_file()
-    assert "Gflop/s" not in out.getvalue().replace("Gflop/s max", "")
+    # Raw tool output stays in logs/; progress records never reach the
+    # console (DevSpec 4.8).
+    assert "proc'd" not in out.getvalue()
+    assert "Test10" not in out.getvalue()
     assert not nvml.initialised

@@ -4,8 +4,8 @@ Preflight and idle sample telemetry only. Burn runs gpu_burn once for
 warm-up plus steady, and the telemetry is labelled by elapsed time so
 the tool is never restarted between the two. Cooldown samples only.
 VRAM runs one cuda_memtest per GPU until the phase time is spent.
-The verdict arrives in M4; until then a finished run exits with
-``ExitCode.INCOMPLETE`` so no caller can mistake it for a PASS.
+After the last phase the result folder is evaluated and the run exits
+with the verdict (DevSpec 4.8).
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from typing import Any, TextIO
 
 import pynvml
 
-from gpubench import config, detect
+from gpubench import config, detect, evaluate
 from gpubench.analysis.loader import sysinfo_file, telemetry_file
 from gpubench.collectors import sysinfo, telemetry
 from gpubench.runners import base, cuda_memtest, gpu_burn
@@ -243,6 +243,18 @@ class Run:
             self.active.remove(process)
 
 
+def report_verdict(state: Run, verdict: dict[str, Any]) -> None:
+    """Print one console line per rule and the incomplete reasons."""
+    for rule in verdict["rules"]:
+        grades = ", ".join(
+            f"gpu{g['index']} {g['grade']} ({g['measured']})"
+            for g in rule["gpus"]
+        )
+        state.say(f"verdict: {rule['title']}: {grades}")
+    for reason in verdict["incomplete_reasons"]:
+        state.say(f"verdict: incomplete: {reason}")
+
+
 def write_summary(path: Path, status: str, reason: str, results: dict) -> None:
     """Write ``summary.json`` with the runner results gathered so far."""
     document = {"status": status, "reason": reason, "runners": results}
@@ -311,7 +323,12 @@ def run(
             telemetry.utc_timestamp(now),
             sysinfo.collect_host(host_root),
         )
-        info["run"] = {"profile": profile_name, "gpu_class": gpu_class}
+        info["run"] = {
+            "profile": profile_name,
+            "gpu_class": gpu_class,
+            "sampling_interval_s": profile["sampling_interval_s"],
+            "gpu_ratio_min": profile["evaluation"]["gpu_ratio_min"],
+        }
         (result_dir / sysinfo_file).write_text(
             json.dumps(info, indent=2) + "\n", encoding="utf-8"
         )
@@ -356,12 +373,15 @@ def run(
                 f"optional: {profile['optional_runner']} arrives in M7; skipped"
             )
         elapsed_s = time.monotonic() - started
-        reason = "evaluation not implemented yet (M4)"
         write_summary(
-            result_dir / summary_file, "INCOMPLETE", reason, state.results
+            result_dir / summary_file, "EVALUATING", "", state.results
         )
-        state.say(f"run: finished in {elapsed_s:.0f} s; {reason}; INCOMPLETE")
-        return ExitCode.INCOMPLETE
+        verdict = evaluate.write_evaluation(result_dir, summary_file)
+        report_verdict(state, verdict)
+        state.say(
+            f"run: finished in {elapsed_s:.0f} s; verdict {verdict['verdict']}"
+        )
+        return ExitCode(verdict["exit_code"])
     except KeyboardInterrupt:
         if state is not None:
             state.stop_all()
