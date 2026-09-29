@@ -9,9 +9,7 @@ stub_invocations = [
     ["status"],
     ["attach"],
     ["stop"],
-    ["plot", "results/example"],
     ["compare", "results/a", "results/b"],
-    ["pdf", "results/example"],
 ]
 
 
@@ -63,3 +61,13 @@ def test_run_passes_options_to_orchestrator(monkeypatch, tmp_path):
     assert options.profile == "quick"
     assert options.gpu_class == "workstation"
     assert options.results_root == tmp_path
+
+
+def test_plot_rejects_a_missing_folder(tmp_path, capsys):
+    assert cli.main(["plot", str(tmp_path / "missing")]) == ExitCode.ERROR
+    assert "not a folder" in capsys.readouterr().err
+
+
+def test_pdf_needs_a_report_docx(tmp_path, capsys):
+    assert cli.main(["pdf", str(tmp_path)]) == ExitCode.ERROR
+    assert "report.docx" in capsys.readouterr().err

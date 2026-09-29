@@ -33,11 +33,12 @@ A run goes through these phases:
 | vram | 600 s | 30 s | cuda_memtest `--stress` on every GPU |
 
 Available today: the phases above, the PASS/WARN/FAIL verdict and its
-exit status, `telemetry.jsonl`, `sysinfo.json`, `summary.json`, and
-the raw tool logs. **Not yet available:** charts and the one-page A4
-report in `report.docx` and `report.pdf` (M5), and the live console
-(M6).
-`example/GPU_Burn-in_Report_Sample.pdf` shows the planned report. It
+exit status, the one-page A4 report (`report.docx` and `report.pdf`),
+`report.html`, `report.md`, the interactive `dashboard.html`, charts,
+the raw data, and the tool logs. **Not yet available:** the live
+console, `status`, `attach`, and `stop` (M6), the optional tests (M7),
+and `compare`.
+`example/GPU_Burn-in_Report_Sample.pdf` shows the report layout. It
 was generated from synthetic data during specification.
 
 ## 2. Requirements
@@ -47,7 +48,7 @@ was generated from synthetic data during specification.
 | Host | Linux with an NVIDIA driver, or Windows 11 with Docker Desktop (WSL2 backend). Verified so far only on Windows 11 with Docker Desktop 28.5.2 |
 | GPU | NVIDIA, compute capability 6.1 (Pascal) or newer |
 | Docker | Docker Engine or Docker Desktop with GPU support (NVIDIA Container Toolkit on Linux) |
-| Disk | 5.67 GB for the `gpubench` image, plus the CUDA 12.8.1 devel and runtime base images during the build (the runtime base image alone is 5.58 GB) |
+| Disk | 6.75 GB for the `gpubench` image (LibreOffice Writer and Noto CJK fonts for the report add about 1.1 GB), plus the CUDA 12.8.1 devel and runtime base images during the build (the runtime base image alone is 5.58 GB) |
 
 Check the driver and GPU access from a container:
 
@@ -149,19 +150,19 @@ This loads the GPUs. Watch the temperatures on the first run.
 docker exec gpubench gpubench run --profile quick
 ```
 
-Output excerpt (the console prints one line per second):
+Output of the M5 verification run on 2026-09-29, with the
+per-second `[phase n/N]` lines left out (the console prints one per
+second). This container was started without `--hostname`, so the
+folder carries the container ID:
 
 ```
-preflight: 2 GPU(s), class workstation, profile quick, results /results/gpubench-dev_20260929-002048
+preflight: 2 GPU(s), class workstation, profile quick, results /results/ada43759bbce_20260929-004808
 preflight: gpu0 Quadro RTX 6000 (Quadro RTX), unsupported: temp_mem, ecc_corr, ecc_uncorr, remap_corr, remap_uncorr, remap_pending, remap_failure
-[idle 1/10] gpu0 29 C 20.91 W 300 MHz | gpu1 29 C 12.29 W 300 MHz
-burn: gpu_burn for 45 s, log /results/gpubench-dev_20260929-002048/logs/gpu_burn.log
-[burn_steady 1/30] gpu0 43 C 260.36 W 1605 MHz | gpu1 44 C 255.5 W 1590 MHz
-[burn_steady 30/30] gpu0 60 C 255.66 W 1545 MHz | gpu1 61 C 252.62 W 1530 MHz
-burn: gpu0 13923.0 Gflop/s max, 0 errors, verdict OK
-burn: gpu1 13979.0 Gflop/s max, 0 errors, verdict OK
+preflight: gpu1 Quadro RTX 6000 (Quadro RTX), unsupported: temp_mem, ecc_corr, ecc_uncorr, remap_corr, remap_uncorr, remap_pending, remap_failure
+burn: gpu_burn for 45 s, log /results/ada43759bbce_20260929-004808/logs/gpu_burn.log
+burn: gpu0 13953.0 Gflop/s max, 0 errors, verdict OK
+burn: gpu1 14007.0 Gflop/s max, 0 errors, verdict OK
 vram: cuda_memtest on 2 GPU(s)
-[vram 30/30] gpu0 66 C 197.14 W 1890 MHz | gpu1 67 C 204.92 W 1875 MHz
 vram: gpu0 1 tests, 0 pattern errors
 vram: gpu1 2 tests, 0 pattern errors
 verdict: Compute errors: gpu0 PASS (OK, 0 errors), gpu1 PASS (OK, 0 errors)
@@ -169,8 +170,10 @@ verdict: VRAM pattern errors: gpu0 PASS (0 errors in 1 tests), gpu1 PASS (0 erro
 verdict: ECC uncorrectable increase: gpu0 N/A (ECC not reported), gpu1 N/A (ECC not reported)
 verdict: HW slowdown, HW thermal, power brake: gpu0 PASS (0 s), gpu1 PASS (0 s)
 verdict: SW thermal slowdown: gpu0 PASS (0 s), gpu1 PASS (0 s)
-verdict: Maximum temperature: gpu0 PASS (66 C (limit 91 C)), gpu1 PASS (67 C (limit 91 C))
-verdict: GPU-to-GPU throughput: gpu0 PASS (99.9% of fastest (13333 Gflop/s)), gpu1 PASS (100.0% of fastest (13345 Gflop/s))
+verdict: Maximum temperature: gpu0 PASS (64 C (limit 91 C)), gpu1 PASS (66 C (limit 91 C))
+verdict: GPU-to-GPU throughput: gpu0 PASS (99.9% of fastest (13335 Gflop/s)), gpu1 PASS (100.0% of fastest (13352 Gflop/s))
+report: rendering charts and reports
+report: /results/ada43759bbce_20260929-004808/report.pdf
 run: finished in 102 s; verdict PASS
 ```
 
@@ -207,10 +210,18 @@ JSON console output arrives in M6.
 Each run writes `results/<hostname>_<YYYYMMDD-HHMMSS>/`:
 
 ```
+charts/
+    png/    clk_sm, fan_speed, memory_used, power, temperature,
+    svg/    throttle, utilization (.png at 300 dpi, .svg)
 logs/
     cuda_memtest_gpu0.log
     cuda_memtest_gpu1.log
     gpu_burn.log
+dashboard.html
+report.docx
+report.html
+report.md
+report.pdf
 summary.json
 sysinfo.json
 telemetry.jsonl
@@ -222,14 +233,28 @@ telemetry.jsonl
 | `sysinfo.json` | GPUs (brand, class, VBIOS, ECC mode, slowdown and shutdown temperatures, power limit, maximum clocks, PCIe), driver, CUDA, CPU, memory, OS, and the profile used |
 | `summary.json` | Verdict and exit code, the grade of every rule per GPU, per-GPU metrics, incomplete reasons, and the raw runner results |
 | `logs/*.log` | Raw tool output; it never reaches the console |
-
-`report.docx`, `report.pdf`, `report.html`, `report.md`,
-`dashboard.html`, and `charts/` arrive in M5.
+| `report.docx` | One-page A4 report in Korean; edit it and run `gpubench pdf` (section 11) |
+| `report.pdf` | `report.docx` converted by LibreOffice |
+| `report.html` | The same report with the charts embedded, for a browser |
+| `report.md` | The same report linking `charts/png/` |
+| `dashboard.html` | Plotly charts with zoom and hover; the library is embedded (about 4.9 MB), so it opens offline |
+| `charts/` | Every chart as a 300 dpi PNG and as SVG. Fan speed appears only when a GPU reports it |
 
 ## 10. Reading the Report
 
-The printed report arrives in M5. The verdict already exists in
-`summary.json` and on the console.
+`report.pdf` follows the layout of
+`example/GPU_Burn-in_Report_Sample.pdf`, from top to bottom:
+
+1. The header gives the host, start time, profile, total duration, and the final verdict.
+2. The summary paragraph states the verdict and any rule that was not PASS.
+3. The system information and test conditions show the configured phase durations.
+4. Four charts follow: GPU temperature with the reported slowdown temperature, power with the enforced limit, SM clock during the burn, and the throttling timeline. Background colours mark the phases.
+5. The per-GPU results table highlights cells that broke a rule. SM clock retention is for reference only.
+6. The rule table shows each rule, its criterion, the value and grade per GPU, and the source of the threshold.
+
+When the PDF would run past one page, the rule table keeps only WARN
+and FAIL rows and says so in its heading. A `docx` that violates the
+ECMA-376 schema fails the run with exit status 4.
 
 Only thresholds documented by NVIDIA or by the tool in use are graded.
 Grades follow DCGM error severity: ISOLATE and RESET become FAIL,
@@ -262,8 +287,32 @@ finished no test or reported an error without a pattern count.
 
 ## 11. Re-rendering and Comparing
 
-Not available yet (M5): `plot` and `compare` currently exit with
-status 4.
+`plot` renders the charts, dashboard, and every report again from the
+data in a result folder. It needs no GPU:
+
+```bash
+docker run --rm -v "$PWD/results:/results" gpubench \
+    gpubench plot /results/<folder>
+```
+```
+gpubench plot: wrote /results/rt/report.docx
+gpubench plot: wrote /results/rt/report.html
+gpubench plot: wrote /results/rt/report.md
+gpubench plot: wrote /results/rt/dashboard.html
+gpubench plot: wrote /results/rt/report.pdf
+```
+
+`pdf` converts an edited `report.docx` into `report.pdf` again without
+rebuilding it:
+
+```bash
+docker exec gpubench gpubench pdf /results/<folder>
+```
+```
+gpubench pdf: wrote /results/ada43759bbce_20260929-004808/report.pdf (1 page(s))
+```
+
+`compare` is not available yet and exits with status 4.
 
 ## 12. Configuration
 
@@ -287,6 +336,9 @@ and `cuda_memtest.stress`.
 |---|---|
 | `preflight: gpu_burn still running as pid N`, exit status 4 | A previous run left a test tool behind. Wait for it to finish, or restart the container |
 | `preflight: GPUs of different classes ...` | Choose one with `--gpu-class` |
+| `report: failed: report.docx violates the OOXML schema ...`, exit status 4 | A bug in the report builder. The verdict is still in `summary.json`; open an issue with the message |
+| `pdf skipped: LibreOffice is not installed` or `gpubench pdf: LibreOffice with python3-uno is not installed` | `gpubench` runs outside the image. Run `plot` or `pdf` in the container (section 11) |
+| Korean text in charts shows as boxes | Noto Sans CJK is missing, which happens only outside the image. Render inside the container |
 
 The remaining entries of `docs/DevSpec.md` section 5 are added with the
 features they describe.
@@ -325,8 +377,20 @@ pytest -q
 ```
 ```
 All checks passed!
-30 files already formatted
-86 passed in 1.39s
+46 files already formatted
+133 passed, 3 skipped in 12.55s
+```
+
+Outside the image, the schema and PDF tests skip because the host has
+no OOXML schemas and no LibreOffice. Run them inside the image, where
+none may skip:
+
+```bash
+docker run --rm -v "$PWD:/src" -w /src gpubench \
+    sh -c 'pip install --quiet pytest && pytest -q -rs tests/'
+```
+```
+136 passed in 17.06s
 ```
 
 ## 16. License and Third-party
@@ -340,3 +404,7 @@ contains:
 | [cuda_memtest](https://github.com/ComputationalRadiationPhysics/cuda_memtest) | Illinois Open Source License (NCSA) |
 | [NVIDIA CUDA base images](https://hub.docker.com/r/nvidia/cuda) | NVIDIA Deep Learning Container License |
 | [nvidia-ml-py](https://pypi.org/project/nvidia-ml-py/), [PyYAML](https://pypi.org/project/PyYAML/) | BSD, MIT |
+| [matplotlib](https://matplotlib.org/), [Plotly](https://plotly.com/python/), [python-docx](https://pypi.org/project/python-docx/), [pypdf](https://pypi.org/project/pypdf/), [lxml](https://lxml.de/) | Matplotlib License (PSF-based), MIT, MIT, BSD 3-Clause, BSD 3-Clause |
+| [LibreOffice](https://www.libreoffice.org/) Writer and python3-uno | MPL 2.0 |
+| [Noto Sans CJK](https://github.com/notofonts/noto-cjk) | SIL Open Font License 1.1 |
+| [ECMA-376](https://ecma-international.org/publications-and-standards/standards/ecma-376/) Part 4 schemas, W3C `xml.xsd` | Published standards, downloaded during the build |

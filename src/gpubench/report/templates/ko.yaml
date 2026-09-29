@@ -1,0 +1,142 @@
+# Korean report strings (DevSpec 4.6). Code refers to them by key;
+# placeholders use Python str.format names.
+
+title: GPU Burn-in Report
+sample_mark: SAMPLE, 가상 데이터
+header_meta: "호스트 {host}  |  {started}  |  프로필 {profile}  |  총 소요 {duration}"
+final_verdict: 최종 판정
+duration: "{minutes}분 {seconds:02d}초"
+
+summary_label: 요약
+summary_clean: 연산 오류와 VRAM 오류는 모든 GPU에서 0건입니다.
+summary_compute_fail: "연산 오류가 {gpus}에서 발생했습니다."
+summary_vram_fail: "VRAM 패턴 오류가 {gpus}에서 {count}건 발생했습니다."
+summary_rule_issue: "{gpus}: {rule} {grade} ({measured})."
+summary_temperature: "최고 온도 {temp:.1f} °C는 장치 보고 Slowdown Temp {limit:.0f} °C {relation}입니다."
+summary_temperature_below: 미만
+summary_temperature_above: 이상
+summary_incomplete: "판정 불가: {reasons}."
+summary_basis: 판정 기준은 NVIDIA 문서와 도구 기본값만 사용했습니다.
+
+section_system: 시스템 정보, 테스트 조건
+section_charts: 측정 그래프
+section_charts_note: 배경색은 구간, Idle, Warm-up, Steady, Cooldown, VRAM 순
+section_gpus: GPU별 결과
+section_gpus_note: 온도 °C, 전력 W, 비율 %, 시간 s. 강조 셀은 기준 이탈. 클럭 유지율은 참고값
+section_rules: 판정 근거
+section_rules_note: 등급 매핑은 DCGM 오류 심각도 기준, MONITOR는 WARN, ISOLATE와 RESET은 FAIL
+section_rules_filtered: "1페이지를 넘어 WARN과 FAIL 항목만 표시"
+
+system_rows:
+  gpu: GPU
+  driver: 드라이버, CUDA
+  pcie: PCIe
+  ecc: ECC, 냉각
+  cpu: CPU
+  memory: 메모리
+  os: OS, 커널
+condition_rows:
+  idle: Idle
+  burn: Burn
+  cooldown_vram: Cooldown, VRAM
+  sampling: 샘플링
+  execution: 실행 방식
+  versions: 도구 버전
+  basis: 판정 기준
+
+values:
+  gpu: "{count} x {name}, {memory_gb} GB, {gpu_class}"
+  driver: "{driver}, CUDA {cuda}"
+  pcie_item: "GPU {index} Gen{gen} x{width}"
+  ecc: "ECC {ecc}, 팬 {fan}"
+  fan_reported: 보고됨
+  fan_not_reported: 미보고
+  cpu: "{model}, {cores}코어 {threads}스레드"
+  memory: "{total_gb} GB"
+  os: "{name}, {kernel}"
+  idle: "{seconds} s 무부하 샘플링"
+  burn: "gpu-burn {seconds} s, -m {memory}%, warm-up {warmup} s 분리"
+  cooldown_vram: "{cooldown} s, cuda_memtest {vram} s --stress"
+  sampling: "NVML {interval} s 주기, GPU당 {samples}개 샘플"
+  execution: docker exec, 상주 컨테이너, --init
+  versions: "gpubench {version}"
+  basis: NVIDIA 문서, 도구 기본값만 사용
+  unknown: 확인 불가
+
+charts:
+  temperature: GPU 코어 온도
+  power: 소비 전력
+  clk_sm: SM 클럭, 부하 구간
+  throttle: Throttling 발생 구간
+  utilization: GPU 사용률
+  memory_used: VRAM 사용량
+  fan_speed: 팬 속도
+  x_minutes: 경과 시간, 분
+  slowdown_line: "GPU Slowdown Temp {limit:.0f} °C"
+  power_limit_line: "Power limit {limit:.0f} W"
+  none: 없음
+
+phases:
+  idle: Idle
+  burn_warmup: Warm-up
+  burn_steady: Steady
+  cooldown: Cool
+  vram: VRAM
+
+throttle_rows:
+  sw_thermal: SW Thermal
+  hw: HW Slowdown
+  sw_power_cap: Power Cap
+
+gpu_columns:
+  gpu: GPU
+  idle_temp: Idle 온도
+  steady_mean: Steady 평균
+  temp_max: 최고 온도
+  power_max: 최대 전력
+  clk_retention: 클럭 유지율
+  gflops: Gflop/s
+  ratio: 최고 대비
+  sw_thermal: SW Thermal
+  hw_slowdown: HW Slowdown
+  compute_errors: 연산 오류
+  vram_errors: VRAM 오류
+  verdict: 판정
+
+rule_columns:
+  rule: 규칙
+  criterion: 기준
+  source: 기준 출처
+
+rules:
+  compute_errors: [연산 오류, gpu-burn 결과 OK, gpu-burn 자체 판정]
+  vram_errors: [VRAM 패턴 오류, 0건, DCGM memtest]
+  ecc_dbe: [ECC DBE 증가, 0건, DCGM DBE = ISOLATE]
+  hw_slowdown: ["HW Slowdown, Thermal, Power Brake", 발생 없음, "NVML, DCGM clocks event = MONITOR"]
+  sw_thermal: [SW Thermal Slowdown, 발생 없음, "NVML, DCGM clocks event = MONITOR"]
+  temperature: [최고 온도, "Slowdown {limit:.0f} °C 미만", "nvidia-smi 보고값, DCGM 온도 위반 = MONITOR"]
+  gpu_ratio: [GPU 간 성능, "최고 대비 {percent:.0f} % 이상", gpu-fryer 기본 tolerance 10 %]
+
+measured:
+  ok: OK
+  faulty: FAULTY
+  count: "{count}건"
+  none_seen: 발생 없음
+  seconds: "{seconds:.0f} s"
+  celsius: "{value:.1f} °C"
+  percent: "{value:.1f} %"
+  not_applicable: 해당 없음
+  unknown: 확인 불가
+  tool_error: 도구 오류
+
+grades:
+  PASS: "✓ PASS"
+  WARN: "! WARN"
+  FAIL: "✗ FAIL"
+  N/A: "– N/A"
+  INCOMPLETE: "? INCOMPLETE"
+
+footer: "gpubench {version}  |  원본: telemetry.jsonl, summary.json, report.docx, dashboard.html"
+footer_sample: 본 문서의 모든 수치는 레이아웃 예시용 가상 데이터입니다
+footer_separator: "  |  "
+dashboard_title: "GPU Burn-in Dashboard, {host}"

@@ -1,9 +1,9 @@
 """Command-line entry point for gpubench.
 
 The subcommands follow DevSpec section 3: ``run``, ``status``,
-``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. ``run`` is
-implemented up to the idle phase; the other subcommands parse their
-arguments and report that the implementation is missing, exiting with
+``attach``, ``stop``, ``plot``, ``compare``, and ``pdf``. ``run``,
+``plot``, and ``pdf`` are implemented; the others parse their arguments
+and report that the implementation is missing, exiting with
 ``ExitCode.ERROR``.
 """
 
@@ -100,6 +100,46 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def plot(result_dir: Path) -> int:
+    """Re-render charts, dashboard, and reports of ``result_dir``."""
+    from gpubench.report import render
+
+    if not result_dir.is_dir():
+        print(f"gpubench plot: {result_dir} is not a folder", file=sys.stderr)
+        return int(ExitCode.ERROR)
+    try:
+        files = render.render(result_dir)
+    except (render.ReportError, OSError, KeyError, ValueError) as exc:
+        print(f"gpubench plot: {exc}", file=sys.stderr)
+        return int(ExitCode.ERROR)
+    for note in files.notes:
+        print(f"gpubench plot: {note}")
+    written = [files.docx, files.html, files.markdown, files.dashboard]
+    if files.pdf:
+        written.append(files.pdf)
+    for path in written:
+        print(f"gpubench plot: wrote {path}")
+    return int(ExitCode.PASS)
+
+
+def pdf(result_dir: Path) -> int:
+    """Convert an edited ``report.docx`` to ``report.pdf`` again."""
+    from gpubench.report import render
+
+    try:
+        path, pages = render.convert_pdf(result_dir)
+    except (render.ReportError, OSError) as exc:
+        print(f"gpubench pdf: {exc}", file=sys.stderr)
+        return int(ExitCode.ERROR)
+    print(f"gpubench pdf: wrote {path} ({pages} page(s))")
+    if pages > render.max_pages:
+        print(
+            f"gpubench pdf: warning: more than {render.max_pages} page",
+            file=sys.stderr,
+        )
+    return int(ExitCode.PASS)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Parse ``argv`` and dispatch to the selected command.
 
@@ -123,6 +163,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             results_root=Path(args.results_root),
         )
         return int(orchestrator.run(options))
+    if args.command == "plot":
+        return plot(Path(args.result_dir))
+    if args.command == "pdf":
+        return pdf(Path(args.result_dir))
     print(
         f"gpubench {args.command}: not implemented yet",
         file=sys.stderr,

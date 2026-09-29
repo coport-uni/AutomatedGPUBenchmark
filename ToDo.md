@@ -318,3 +318,56 @@ codes). Relevant patterns: LP E3 (null fields become N/A), L5, G3.
 - [x] Orchestrator changed the exit path, so the quick profile was run
       once on the real GPUs: verdict PASS, exit 0; README sections 1,
       6, 8, 9, 10 updated from that run
+
+---
+
+## 8. M5: charts, report.docx, docx2pdf
+
+### Background
+User request (2026-09-29): continue with M4, M5, and M6. M5 is DevSpec
+section 6 row M5: charts, `report.docx`, PDF through LibreOffice UNO,
+verified with fixtures (docx schema validation, one-page PDF). The
+layout follows `example/GPU_Burn-in_Report_Sample.pdf` (DevSpec 4.6).
+Reference: DevSpec 4.5, 4.6, 4.6.1, 4.7. Relevant patterns: LP L1
+(UNO autospace), L2 (tblGrid, tblW, fixed layout), L3 (schema order),
+L4 (`w:zoom w:percent`).
+
+### Decisions (2026-09-29)
+- Report text is Korean like the sample; the strings live in
+  `report/templates/ko.yaml`, not in code.
+- OOXML validation uses the ECMA-376 5th edition Part 4 Transitional
+  XML schemas, downloaded from ecma-international.org during the
+  image build and checked by SHA-256. Markup-compatibility content
+  (`mc:Ignorable` namespaces) is removed before validation, as Word
+  itself ignores it.
+- Charts for the report: GPU temperature, power, SM clock in the burn
+  phases, throttling timeline. Dashboard (Plotly, JS embedded):
+  temperature, power, SM clock, utilisation, memory used, and fan when
+  reported. The remaining analysis charts of DevSpec 4.7 (scatter,
+  histograms, heatmap) and `compare` move to a follow-up.
+- `gpubench plot <dir>` re-renders charts and reports without a GPU;
+  `gpubench pdf <dir>` converts an edited `report.docx` again.
+- Tests that need LibreOffice or the schemas run inside the runtime
+  image in CI and skip elsewhere.
+
+### Tasks
+- [x] Issue, branch `feat/m5-report`
+- [x] `charts/theme.py`, `charts/static_mpl.py`, `charts/catalog.py`
+- [x] `charts/interactive_plotly.py` (dashboard.html)
+- [x] `report/docx_builder.py` with LP L2, L3, L4 applied
+- [x] `report/ooxml.py` schema validation
+- [x] `report/docx2pdf.py` via UNO, one-page check and regeneration
+- [x] `report/render.py` (report.md, report.html)
+- [x] CLI `plot`, `pdf`; orchestrator renders after the verdict
+- [x] Dockerfile: LibreOffice, python3-uno, fonts-noto-cjk, schemas
+- [x] Tests on the real fixtures; CI runs container tests
+- [ ] Hardware run renders the report; operator reviews the PDF
+- [x] Verification 2026-09-29: 136 tests pass inside the image (schema
+      and PDF tests included), 133 pass and 3 skip on the host; quick
+      run on 2x Quadro RTX 6000 gave PASS, exit 0, and a one-page
+      `report.pdf`; `gpubench pdf` re-converted an edited `report.docx`
+      to one page without the `12 건` spacing (LP L1)
+- [x] LearnedPatterns: R1, L7, L8, L9; README sections 1, 2, 6, 9, 10,
+      11, 13, 15, 16 updated
+- [ ] Operator review of the hardware `report.pdf` layout (pending;
+      layout changes go to a follow-up issue)

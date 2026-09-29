@@ -255,6 +255,30 @@ def report_verdict(state: Run, verdict: dict[str, Any]) -> None:
         state.say(f"verdict: incomplete: {reason}")
 
 
+def write_reports(state: Run, result_dir: Path) -> bool:
+    """Render charts and reports; return False when that failed.
+
+    A report that violates the OOXML schema fails the run (DevSpec
+    4.6.1, step 3) even though the verdict is already in summary.json.
+    """
+    # Imported here so the GPU path does not load matplotlib, Plotly,
+    # and python-docx before the tests have finished.
+    from gpubench.report import render
+
+    state.say("report: rendering charts and reports")
+    try:
+        files = render.render(result_dir)
+    except (render.ReportError, OSError) as exc:
+        state.say(f"report: failed: {exc}")
+        return False
+    for note in files.notes:
+        state.say(f"report: {note}")
+    if files.rules_filtered:
+        state.say("report: rule table reduced to WARN and FAIL to fit A4")
+    state.say(f"report: {files.pdf or files.docx}")
+    return True
+
+
 def write_summary(path: Path, status: str, reason: str, results: dict) -> None:
     """Write ``summary.json`` with the runner results gathered so far."""
     document = {"status": status, "reason": reason, "runners": results}
@@ -272,8 +296,8 @@ def run(
     """Execute every implemented phase and write the result folder.
 
     Returns:
-        ``ExitCode.ERROR`` when preflight fails, otherwise
-        ``ExitCode.INCOMPLETE`` until the evaluation of M4 exists.
+        ``ExitCode.ERROR`` when preflight or the report fails, otherwise
+        the exit code of the verdict.
     """
     leftovers = find_leftover_processes(proc_root)
     if leftovers:
@@ -328,6 +352,8 @@ def run(
             "gpu_class": gpu_class,
             "sampling_interval_s": profile["sampling_interval_s"],
             "gpu_ratio_min": profile["evaluation"]["gpu_ratio_min"],
+            "phases": dict(profile["phases"]),
+            "gpu_burn_memory_percent": profile["gpu_burn"]["memory_percent"],
         }
         (result_dir / sysinfo_file).write_text(
             json.dumps(info, indent=2) + "\n", encoding="utf-8"
@@ -378,6 +404,8 @@ def run(
         )
         verdict = evaluate.write_evaluation(result_dir, summary_file)
         report_verdict(state, verdict)
+        if not write_reports(state, result_dir):
+            return ExitCode.ERROR
         state.say(
             f"run: finished in {elapsed_s:.0f} s; verdict {verdict['verdict']}"
         )

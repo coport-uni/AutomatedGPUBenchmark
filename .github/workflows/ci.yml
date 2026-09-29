@@ -63,3 +63,15 @@ jobs:
           docker run --rm -e LD_LIBRARY_PATH=/opt/cuda-stubs gpubench:ci cuda_memtest --help \
             | grep 'Usage:cuda_memtest'
           docker run --rm gpubench:ci gpubench --version
+      - name: Report tests with LibreOffice and the OOXML schemas
+        # The host job skips the schema and PDF tests; inside the image
+        # none of them may be skipped. An explicit bash shell adds
+        # pipefail, so a pytest failure is not hidden by tee.
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src \
+            -e PYTHONDONTWRITEBYTECODE=1 gpubench:ci sh -c \
+            'pip install --quiet pytest \
+              && pytest -q -p no:cacheprovider -rs tests/test_report.py' \
+            | tee report-tests.log
+          ! grep -q SKIPPED report-tests.log
