@@ -39,7 +39,7 @@ at commit `ca42b88`.
       notes, WSL2 findings)
 - [x] Section 0.3 verification, output attached to PR `## Testing`
       (submodule pinned to 4390147, CommonClaude#32)
-- [ ] Commit, push, PR, merge, delete branch
+- [x] Commit, push, PR, merge, delete branch (PR #2, 8c05bf4)
 
 ### Milestone verification plan
 How each milestone in DevSpec section 6 will be verified. Every
@@ -77,13 +77,13 @@ session had only tested the hooks with hand-written forward-slash
 payloads. Fix belongs upstream in CommonClaude (see LP section 2, G2).
 
 ### Tasks
-- [ ] (local commit 70ed91d done; push and PR need operator)
+- [x] (70ed91d, merged as CommonClaude#32 / 4390147)
       CommonClaude: branch `fix/windows-hook-paths`, normalise
       backslashes in `pre-write-guard`, `post-write-debug-remind`,
       `pre-read-env-guard`; verify with both path styles; issue CommonClaude#31 and PR
-- [ ] Update PR #2 `## Testing` with the new-session evidence and the
+- [x] Update PR #2 `## Testing` with the new-session evidence and the
       item 4 failure; PR #2 stays open until the fix is pinned
-- [ ] After the upstream PR is merged: bump the submodule pin, re-run
+- [x] After the upstream PR is merged: bump the submodule pin, re-run
       item 4 with a real `Write`, then merge PR #2
 
 ---
@@ -147,7 +147,7 @@ E3 (NVML fields on this host).
       (2026-09-28 14:21 UTC, 10 s, 2 GPUs, no load)
 - [x] M1b verification: local `docker build`; `nvidia-smi -L` in the
       image with `--gpus all`; CI green; push, PR
-- [ ] `LearnedPatterns.md` additions, issue update, merge, branch
+- [x] `LearnedPatterns.md` additions, issue update, merge, branch
       cleanup
 
 ---
@@ -196,7 +196,7 @@ Bash commands).
 - [x] Hardware run in the container: `gpubench run --profile quick`,
       check 1 s cadence, one line per GPU, `null` fields, compare
       `sysinfo.json` with `nvidia-smi -q`
-- [ ] Commit, push, PR, issue update
+- [x] Commit, push, PR, issue update
 
 ---
 
@@ -237,7 +237,41 @@ Relevant patterns: LP E4 (driver stubs), E5 (`MSYS_NO_PATHCONV`), W4
 - [x] Parser tests on real and synthetic logs
 - [x] Hardware run `gpubench run --profile quick` with GPU load;
       Gflop/s per GPU, raw output only in `logs/`, leftover check
-- [ ] Commit, push, PR, issue update
+- [x] Commit, push, PR, issue update
 - [ ] Follow-up (M6): telemetry pauses while gpu_burn finishes after
       the sampling window (about 8 s with `-stts 5`); sample during
       that wait under a documented label
+
+---
+
+## 6. README skeleton
+
+### Background
+User question (2026-09-29): "is it right that there is no README for
+this repository yet?" Confirmed: no branch has a root README. DevSpec
+section 5 requires every README command to be executed, and PRs that
+change CLI options or outputs to update the README; M2 and M3 did so
+without a README to update. The full README stays in M8. PRs #2, #4,
+#5, #7, #9 were merged in order on the user's request before this.
+
+### Decisions (2026-09-29)
+- All 16 DevSpec section 5 headings are present in order. Sections
+  whose features do not exist yet say so and name the milestone.
+- Every command is taken from a run in a fresh
+  `git clone --recurse-submodules` of `main`; outputs are excerpts.
+- `docker exec -it` (live mode) is not shown yet: the live console is
+  M6 and cannot be exercised without a TTY from this session.
+- LICENSE is still the user's decision; section 16 lists the
+  third-party licenses only.
+
+### Tasks
+- [x] Issue (#10), branch `docs/readme-skeleton`
+- [x] Fresh clone, build, start, quick run, results, cleanup executed
+      exactly as written (heats the GPU for about 100 s; heating was
+      confirmed by the operator in this session)
+- [x] `README.md` with the 16 sections
+- [ ] Commit, push, PR, merge after review
+- [x] Fix found while checking README claims: `optional_s` sat at the
+      top level of `workstation.yaml` and `datacenter.yaml` instead of
+      under `phases`, so it was ignored; new config test catches it
+- [x] Drop the stale "(M1 skeleton)" from the stub message

@@ -2,7 +2,9 @@
 # remapping are checked; dcgmi diag -r 3 runs as the optional phase.
 
 optional_runner: dcgm_diag
-optional_s: 900
+
+phases:
+  optional_s: 900
 
 dcgm_diag:
   level: 3

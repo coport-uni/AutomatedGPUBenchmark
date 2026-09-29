@@ -19,6 +19,23 @@ def test_profile_keeps_every_default_key(name):
     assert set(default["phases"]) <= set(profile["phases"])
 
 
+@pytest.mark.parametrize("name", expected_profiles)
+def test_profile_only_overrides_known_keys(name):
+    default = config.load_yaml(config.config_dir() / config.default_file)
+    path = config.config_dir() / config.profiles_dir / f"{name}.yaml"
+    profile = config.load_yaml(path)
+    unknown = set(profile) - set(default)
+    # Runner sections without a default are allowed; they configure the
+    # optional runner the profile selects.
+    unknown.discard(profile.get("optional_runner"))
+    assert not unknown
+    assert set(profile.get("phases", {})) <= set(default["phases"])
+
+
+def test_workstation_profile_has_no_optional_phase():
+    assert config.load_profile("workstation")["phases"]["optional_s"] == 0
+
+
 def test_quick_profile_is_never_longer_than_default():
     default = config.load_yaml(config.config_dir() / config.default_file)
     quick = config.load_profile("quick")

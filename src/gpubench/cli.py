@@ -124,7 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return int(orchestrator.run(options))
     print(
-        f"gpubench {args.command}: not implemented yet (M1 skeleton)",
+        f"gpubench {args.command}: not implemented yet",
         file=sys.stderr,
     )
     return int(ExitCode.ERROR)
