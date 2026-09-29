@@ -437,4 +437,5 @@ W3 (`git -C`), R1 (no backslashes through Bash).
       traceback exit 1 read as WARN (G6)
 - [x] Tests: 164 passed and 5 skipped on the host, 169 passed in the
       image; LearnedPatterns G4, G5, G6, L10, W5
-- [ ] Operator confirms the M6 hardware evidence before merge
+- [x] Operator confirms the M6 hardware evidence before merge
+      (2026-09-29, "머지해줘"); PR #17 merged
