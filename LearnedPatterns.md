@@ -5,7 +5,7 @@
 > completes (see CommonClaude CLAUDE.md section 9).
 >
 > Last updated: 2026-09-28
-> Total patterns: 17
+> Total patterns: 18
 >
 > Provenance format: `(from ToDo#N)` where N is the top-level `##`
 > section number in `ToDo.md`, or `(from DevSpec 4.6.1)` for entries
@@ -34,6 +34,13 @@
 - **Cause**: Claude Code passes `C:\...\tests\debug_x.py`; `pre-write-guard` and `post-write-debug-remind` match `*/tests/*` and `*/claude_test/*` with forward-slash globs, so backslash paths never match.
 - **Fix**: Upstream fix in CommonClaude normalises `file_path` with `${file_path//\\//}` before the checks (CommonClaude issue #31, branch `fix/windows-hook-paths`); this repo bumps the submodule pin once it is merged.
 - **Rule**: Always verify hooks with the payload the real tool sends on the current host (use the tool itself, not only a simulated JSON payload). (from ToDo#2)
+
+### G3. Profile keys at the wrong nesting level were silently ignored
+
+- **Problem**: `optional_s` in `workstation.yaml` and `datacenter.yaml` had no effect; datacenter would have used 300 s instead of 900 s for `dcgmi diag -r 3`.
+- **Cause**: The key sat at the top level instead of under `phases`, and the recursive merge accepts any new key without complaint.
+- **Fix**: Moved the keys under `phases` and added a test that every profile key exists in `default.yaml`.
+- **Rule**: Always test that overrides only use keys the defaults define; never rely on a merge to reject typos. (from ToDo#6)
 
 ---
 
