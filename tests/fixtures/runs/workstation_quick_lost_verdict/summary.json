@@ -1,0 +1,49 @@
+{
+  "status": "INCOMPLETE",
+  "reason": "evaluation not implemented yet (M4)",
+  "runners": {
+    "gpu_burn": {
+      "exit_status": -15,
+      "stopped": true,
+      "complete": false,
+      "gpus": [
+        {
+          "index": 0,
+          "gflops_max": 13553.0,
+          "gflops_last": 13170.0,
+          "errors": 0,
+          "died": false,
+          "verdict": null
+        },
+        {
+          "index": 1,
+          "gflops_max": 13518.0,
+          "gflops_last": 13152.0,
+          "errors": 0,
+          "died": false,
+          "verdict": null
+        }
+      ]
+    },
+    "cuda_memtest": [
+      {
+        "index": 0,
+        "tests_finished": 1,
+        "pattern_errors": 0,
+        "allocated_mib": 23323,
+        "error_lines": [],
+        "exit_status": -15,
+        "stopped_at_deadline": true
+      },
+      {
+        "index": 1,
+        "tests_finished": 2,
+        "pattern_errors": 0,
+        "allocated_mib": 23323,
+        "error_lines": [],
+        "exit_status": -15,
+        "stopped_at_deadline": true
+      }
+    ]
+  }
+}

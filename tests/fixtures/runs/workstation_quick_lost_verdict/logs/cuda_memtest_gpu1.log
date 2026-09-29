@@ -1,0 +1,14 @@
+[09/28/2026 17:04:48][gpubench-dev][0]:Running cuda memtest, version 1.2.3
+[09/28/2026 17:04:48][gpubench-dev][0]:Warning: Opening /proc/driver/nvidia/version failed
+[09/28/2026 17:04:48][gpubench-dev][0]:num_gpus=1
+[09/28/2026 17:04:48][gpubench-dev][1]:Device name=Quadro RTX 6000, global memory size=25769476096, serial=1560720000224
+[09/28/2026 17:04:49][gpubench-dev][1]:Attached to device 1 successfully.
+[09/28/2026 17:04:50][gpubench-dev][1]:Allocated 23323 MB
+[09/28/2026 17:04:50][gpubench-dev][1]:Test10 [Memory stress test]
+[09/28/2026 17:04:50][gpubench-dev][1]:Test10 with pattern=0x2544d78c27004a5d
+[09/28/2026 17:05:03][gpubench-dev][1]:Test10 finished in 13.5 seconds
+[09/28/2026 17:05:03][gpubench-dev][1]:Test10 [Memory stress test]
+[09/28/2026 17:05:03][gpubench-dev][1]:Test10 with pattern=0x166dd9ef0c4d0c8e
+[09/28/2026 17:05:16][gpubench-dev][1]:Test10 finished in 13.0 seconds
+[09/28/2026 17:05:16][gpubench-dev][1]:Test10 [Memory stress test]
+[09/28/2026 17:05:16][gpubench-dev][1]:Test10 with pattern=0x786e0517199cebe

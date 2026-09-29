@@ -82,10 +82,18 @@ class GpuBurnGpu:
         """Return the throughput of the last progress record."""
         return self.gflops_samples[-1] if self.gflops_samples else None
 
+    @property
+    def gflops_mean(self) -> float | None:
+        """Return the mean throughput over all progress records."""
+        if not self.gflops_samples:
+            return None
+        return sum(self.gflops_samples) / len(self.gflops_samples)
+
     def as_dict(self) -> dict:
         """Return a JSON-ready summary."""
         return {
             "index": self.index,
+            "gflops_mean": self.gflops_mean,
             "gflops_max": self.gflops_max,
             "gflops_last": self.gflops_last,
             "errors": self.errors,
